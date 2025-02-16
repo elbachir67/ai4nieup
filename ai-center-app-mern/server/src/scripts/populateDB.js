@@ -1,22 +1,38 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import { User } from "../models/User.js";
 import { LearningGoal } from "../models/LearningGoal.js";
 import { Concept } from "../models/Concept.js";
 import { ConceptAssessment } from "../models/ConceptAssessment.js";
+import { LearnerProfile } from "../models/LearnerProfile.js";
 import { logger } from "../utils/logger.js";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 
-// Get the directory name of the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load environment variables from the root .env file
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+// Load environment variables
+dotenv.config();
 
 // Ensure we have a MongoDB URI
 const MONGODB_URI =
-  process.env.MONGODB_URI || "mongodb://localhost:27017/ucad_ia";
+  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ucad_ia";
+
+// Sample users data
+const users = [
+  {
+    email: "admin@ucad.edu.sn",
+    password: "2468", // Admin password
+    role: "admin",
+  },
+  {
+    email: "student1@ucad.edu.sn",
+    password: "1234",
+    role: "user",
+  },
+  {
+    email: "student2@ucad.edu.sn",
+    password: "1234",
+    role: "user",
+  },
+];
 
 // Enhanced sample data
 const concepts = [
@@ -42,13 +58,6 @@ const concepts = [
     level: "intermediate",
     prerequisites: ["Algèbre Linéaire"],
   },
-  {
-    name: "Optimisation",
-    description: "Méthodes d'optimisation pour l'apprentissage automatique",
-    category: "mathematics",
-    level: "advanced",
-    prerequisites: ["Calcul Différentiel", "Algèbre Linéaire"],
-  },
 
   // Programming Fundamentals
   {
@@ -71,13 +80,6 @@ const concepts = [
     category: "programming",
     level: "intermediate",
     prerequisites: ["NumPy et Pandas"],
-  },
-  {
-    name: "SQL et Bases de Données",
-    description: "Gestion et requêtage de bases de données",
-    category: "programming",
-    level: "intermediate",
-    prerequisites: ["Python pour l'IA"],
   },
 
   // Machine Learning
@@ -102,13 +104,6 @@ const concepts = [
     level: "intermediate",
     prerequisites: ["Apprentissage Supervisé"],
   },
-  {
-    name: "Validation et Métriques",
-    description: "Évaluation et validation des modèles ML",
-    category: "ml",
-    level: "intermediate",
-    prerequisites: ["Apprentissage Supervisé"],
-  },
 
   // Deep Learning
   {
@@ -126,46 +121,15 @@ const concepts = [
     prerequisites: ["Deep Learning Fondamental"],
   },
   {
-    name: "RNN et LSTM",
-    description: "Réseaux récurrents et mémoire long terme",
-    category: "dl",
-    level: "advanced",
-    prerequisites: ["Deep Learning Fondamental"],
-  },
-  {
     name: "Transformers",
     description: "Architecture Transformer et attention",
     category: "dl",
     level: "advanced",
-    prerequisites: ["RNN et LSTM"],
-  },
-
-  // MLOps
-  {
-    name: "Git et Versioning",
-    description: "Gestion de versions pour les projets ML",
-    category: "mlops",
-    level: "basic",
-    prerequisites: ["Python pour l'IA"],
-  },
-  {
-    name: "ML Pipeline Design",
-    description: "Conception de pipelines ML robustes",
-    category: "mlops",
-    level: "intermediate",
-    prerequisites: ["Git et Versioning", "Apprentissage Supervisé"],
-  },
-  {
-    name: "Déploiement de Modèles",
-    description: "Techniques de déploiement de modèles ML",
-    category: "mlops",
-    level: "advanced",
-    prerequisites: ["ML Pipeline Design"],
+    prerequisites: ["Deep Learning Fondamental"],
   },
 ];
 
 const learningGoals = [
-  // Data Science Track
   {
     title: "Data Scientist Junior",
     description: "Maîtrisez les fondamentaux de la data science",
@@ -179,21 +143,6 @@ const learningGoals = [
     ],
   },
   {
-    title: "Data Scientist Senior",
-    description:
-      "Approfondissez vos compétences en data science et développez des solutions avancées",
-    category: "data_science",
-    estimatedDuration: 24,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "Senior Data Scientist",
-      "Lead Data Analyst",
-      "Data Science Manager",
-    ],
-  },
-
-  // Machine Learning Track
-  {
     title: "ML Engineer",
     description: "Développez et déployez des modèles ML",
     category: "ml",
@@ -206,20 +155,6 @@ const learningGoals = [
     ],
   },
   {
-    title: "ML Research Scientist",
-    description: "Explorez et développez de nouveaux algorithmes de ML",
-    category: "ml",
-    estimatedDuration: 28,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "ML Research Scientist",
-      "Senior ML Engineer",
-      "AI Research Lead",
-    ],
-  },
-
-  // Deep Learning Track
-  {
     title: "Deep Learning Specialist",
     description: "Maîtrisez les architectures de deep learning modernes",
     category: "dl",
@@ -229,96 +164,6 @@ const learningGoals = [
       "Deep Learning Engineer",
       "AI Researcher",
       "Computer Vision Engineer",
-    ],
-  },
-  {
-    title: "NLP Engineer",
-    description: "Spécialisez-vous dans le traitement du langage naturel",
-    category: "dl",
-    estimatedDuration: 22,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "NLP Engineer",
-      "Language AI Specialist",
-      "Chatbot Developer",
-    ],
-  },
-
-  // Computer Vision Track
-  {
-    title: "Computer Vision Expert",
-    description: "Spécialisez-vous en vision par ordinateur",
-    category: "dl",
-    estimatedDuration: 24,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "Computer Vision Engineer",
-      "AI Research Scientist",
-      "Robotics Engineer",
-    ],
-  },
-  {
-    title: "Robotics Vision Engineer",
-    description: "Développez des systèmes de vision pour la robotique",
-    category: "dl",
-    estimatedDuration: 26,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "Robotics Vision Engineer",
-      "Autonomous Systems Engineer",
-      "Industrial AI Specialist",
-    ],
-  },
-
-  // MLOps Track
-  {
-    title: "MLOps Engineer",
-    description: "Gérez le cycle de vie complet des modèles ML",
-    category: "mlops",
-    estimatedDuration: 16,
-    difficulty: "intermediate",
-    careerOpportunities: [
-      "MLOps Engineer",
-      "DevOps Engineer",
-      "Platform Engineer",
-    ],
-  },
-  {
-    title: "ML Platform Architect",
-    description: "Concevez et implémentez des plateformes ML à grande échelle",
-    category: "mlops",
-    estimatedDuration: 24,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "ML Platform Architect",
-      "Senior MLOps Engineer",
-      "ML Infrastructure Lead",
-    ],
-  },
-
-  // AI Product Track
-  {
-    title: "AI Product Manager",
-    description: "Gérez le développement de produits basés sur l'IA",
-    category: "ml",
-    estimatedDuration: 18,
-    difficulty: "intermediate",
-    careerOpportunities: [
-      "AI Product Manager",
-      "ML Product Owner",
-      "AI Solutions Architect",
-    ],
-  },
-  {
-    title: "AI Solutions Architect",
-    description: "Concevez des solutions d'entreprise basées sur l'IA",
-    category: "ml",
-    estimatedDuration: 22,
-    difficulty: "advanced",
-    careerOpportunities: [
-      "AI Solutions Architect",
-      "Enterprise AI Consultant",
-      "AI Strategy Lead",
     ],
   },
 ];
@@ -335,7 +180,10 @@ const assessments = [
             text: "Une matrice carrée dont les colonnes sont orthogonales entre elles",
             isCorrect: true,
           },
-          { text: "Une matrice rectangulaire", isCorrect: false },
+          {
+            text: "Une matrice rectangulaire",
+            isCorrect: false,
+          },
           {
             text: "Une matrice avec uniquement des 1 et des 0",
             isCorrect: false,
@@ -343,25 +191,6 @@ const assessments = [
         ],
         explanation:
           "Une matrice orthogonale est une matrice carrée dont les colonnes forment une base orthonormée.",
-      },
-      {
-        text: "Quelle est la propriété principale des vecteurs propres ?",
-        options: [
-          {
-            text: "Ils changent uniquement de magnitude sous la transformation linéaire",
-            isCorrect: true,
-          },
-          {
-            text: "Ils sont toujours perpendiculaires entre eux",
-            isCorrect: false,
-          },
-          {
-            text: "Ils ont toujours une norme de 1",
-            isCorrect: false,
-          },
-        ],
-        explanation:
-          "Les vecteurs propres sont des vecteurs qui ne changent que d'échelle (magnitude) sous la transformation linéaire.",
       },
     ],
     passingScore: 70,
@@ -390,7 +219,7 @@ const assessments = [
           },
         ],
         explanation:
-          "Les numpy arrays sont spécialement conçus pour les calculs numériques efficaces et la manipulation de données multidimensionnelles.",
+          "Les numpy arrays sont spécialement conçus pour les calculs numériques efficaces.",
       },
     ],
     passingScore: 70,
@@ -419,41 +248,12 @@ const assessments = [
           },
         ],
         explanation:
-          "La régression prédit des valeurs numériques continues, tandis que la classification prédit des catégories ou classes discrètes.",
+          "La régression prédit des valeurs numériques continues, tandis que la classification prédit des catégories discrètes.",
       },
     ],
     passingScore: 75,
     timeLimit: 45,
     difficulty: "intermediate",
-  },
-
-  // Deep Learning Assessments
-  {
-    conceptName: "Deep Learning Fondamental",
-    questions: [
-      {
-        text: "Quel est le rôle de la fonction d'activation dans un réseau de neurones ?",
-        options: [
-          {
-            text: "Introduire de la non-linéarité dans le modèle",
-            isCorrect: true,
-          },
-          {
-            text: "Accélérer l'apprentissage",
-            isCorrect: false,
-          },
-          {
-            text: "Réduire le nombre de paramètres",
-            isCorrect: false,
-          },
-        ],
-        explanation:
-          "La fonction d'activation introduit de la non-linéarité, permettant au réseau d'apprendre des patterns complexes.",
-      },
-    ],
-    passingScore: 80,
-    timeLimit: 60,
-    difficulty: "advanced",
   },
 ];
 
@@ -461,27 +261,52 @@ async function populateDatabase() {
   try {
     logger.info("Attempting to connect to MongoDB at:", MONGODB_URI);
 
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-
+    await mongoose.connect(MONGODB_URI);
     logger.info("Connected to MongoDB");
 
     // Clear existing data
     await Promise.all([
+      User.deleteMany({}),
       LearningGoal.deleteMany({}),
       Concept.deleteMany({}),
       ConceptAssessment.deleteMany({}),
+      LearnerProfile.deleteMany({}),
     ]);
     logger.info("Cleared existing data");
+
+    // Create users
+    for (const userData of users) {
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const user = new User({
+        email: userData.email,
+        password: hashedPassword,
+        role: userData.role,
+      });
+      await user.save();
+
+      // Create learner profile for each user
+      if (userData.role === "user") {
+        const learnerProfile = new LearnerProfile({
+          userId: user._id,
+          learningStyle: "visual",
+          preferences: {
+            mathLevel: "beginner",
+            programmingLevel: "beginner",
+            preferredDomain: "ml",
+          },
+        });
+        await learnerProfile.save();
+      }
+
+      logger.info(`Created user: ${user.email} (${user.role})`);
+    }
 
     // Insert concepts
     const conceptMap = new Map();
     for (const conceptData of concepts) {
       const concept = new Concept({
         ...conceptData,
-        prerequisites: [], // We'll update this later
+        prerequisites: [],
       });
       await concept.save();
       conceptMap.set(concept.name, concept._id);

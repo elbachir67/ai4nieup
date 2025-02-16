@@ -1,17 +1,18 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api } from '../config/api';
+import React, { createContext, useContext, useState } from "react";
 
 interface User {
   id: string;
-  username: string;
+  email: string;
+  token: string;
   isAdmin: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
   loading: boolean;
   isAdmin: boolean;
-  signIn: (username: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
 }
 
@@ -19,38 +20,44 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [loading, setLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser).isAdmin : false;
   });
 
-  const signIn = async (username: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${api.auth}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Invalid credentials');
+        throw new Error("Invalid credentials");
       }
 
       const data = await response.json();
-      if (data.success) {
-        setUser(data.user);
-        setIsAdmin(data.user.isAdmin);
-        localStorage.setItem('user', JSON.stringify(data.user));
-      } else {
-        throw new Error(data.message || 'Login failed');
-      }
+      const userData = {
+        id: data.user.id,
+        email: data.user.email,
+        token: data.token,
+        isAdmin: data.user.isAdmin,
+      };
+
+      setUser(userData);
+      setIsAdmin(userData.isAdmin);
+      localStorage.setItem("user", JSON.stringify(userData));
     } finally {
       setLoading(false);
     }
@@ -59,11 +66,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = () => {
     setUser(null);
     setIsAdmin(false);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        isAdmin,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -72,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

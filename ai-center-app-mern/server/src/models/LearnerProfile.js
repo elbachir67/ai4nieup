@@ -4,45 +4,34 @@ const learnerProfileSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
       required: true,
-      unique: true,
     },
     learningStyle: {
       type: String,
       enum: ["visual", "auditory", "reading", "kinesthetic"],
       required: true,
+      default: "visual",
     },
     preferences: {
       mathLevel: {
         type: String,
         enum: ["beginner", "intermediate", "advanced", "expert"],
         required: true,
+        default: "beginner",
       },
       programmingLevel: {
         type: String,
         enum: ["beginner", "intermediate", "advanced", "expert"],
         required: true,
+        default: "beginner",
       },
       preferredDomain: {
         type: String,
         enum: ["ml", "dl", "computer_vision", "nlp", "mlops"],
         required: true,
+        default: "ml",
       },
     },
-    progress: [
-      {
-        step: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Step",
-        },
-        completed: {
-          type: Boolean,
-          default: false,
-        },
-        completedAt: Date,
-      },
-    ],
     assessments: [
       {
         category: {
@@ -54,41 +43,17 @@ const learnerProfileSchema = new mongoose.Schema(
           min: 0,
           max: 100,
         },
+        responses: [
+          {
+            questionId: String,
+            selectedOption: String,
+            timeSpent: Number,
+          },
+        ],
+        recommendations: [String],
         completedAt: {
           type: Date,
           default: Date.now,
-        },
-      },
-    ],
-    goals: [
-      {
-        title: String,
-        targetDate: Date,
-        completed: {
-          type: Boolean,
-          default: false,
-        },
-      },
-    ],
-    certificates: [
-      {
-        title: String,
-        issuer: String,
-        date: Date,
-        url: String,
-      },
-    ],
-    skills: [
-      {
-        name: String,
-        level: {
-          type: Number,
-          min: 1,
-          max: 5,
-        },
-        endorsements: {
-          type: Number,
-          default: 0,
         },
       },
     ],
@@ -99,9 +64,7 @@ const learnerProfileSchema = new mongoose.Schema(
 );
 
 // Indexes
-learnerProfileSchema.index({ userId: 1 }, { unique: true });
-learnerProfileSchema.index({ "progress.step": 1 });
-learnerProfileSchema.index({ "skills.name": 1 });
+learnerProfileSchema.index({ userId: 1 });
 learnerProfileSchema.index({ "assessments.category": 1 });
 
 export const LearnerProfile = mongoose.model(

@@ -4,6 +4,7 @@ import { ConceptAssessment } from "../models/ConceptAssessment.js";
 import { LearnerProfile } from "../models/LearnerProfile.js";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../utils/logger.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -72,6 +73,9 @@ router.post(
     try {
       const { category, score, responses, recommendations } = req.body;
 
+      // Create a temporary profile for anonymous users
+      const anonymousId = new mongoose.Types.ObjectId();
+
       // Create assessment result
       const assessmentResult = {
         category,
@@ -83,7 +87,7 @@ router.post(
 
       // Save assessment result
       const profile = await LearnerProfile.findOneAndUpdate(
-        { userId: req.user?._id || "anonymous" },
+        { userId: req.user?._id || anonymousId },
         {
           $push: { assessments: assessmentResult },
         },
@@ -111,7 +115,7 @@ router.post(
 router.get("/history", async (req, res) => {
   try {
     const profile = await LearnerProfile.findOne({
-      userId: req.user?._id || "anonymous",
+      userId: req.user?._id,
     });
 
     if (!profile) {

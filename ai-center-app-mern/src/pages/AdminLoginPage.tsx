@@ -1,23 +1,26 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
+import { Lock } from "lucide-react";
 
-function LoginPage() {
+function AdminLoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  // Get assessment results from location state if they exist
-  const assessmentResults = location.state?.assessmentResults;
-  const from = location.state?.from || "/";
+  const [adminCode, setAdminCode] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (adminCode !== "2468") {
+      toast.error("Code administrateur invalide");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -26,7 +29,11 @@ function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          isAdminLogin: true,
+        }),
       });
 
       if (!response.ok) {
@@ -34,30 +41,15 @@ function LoginPage() {
       }
 
       const data = await response.json();
-      if (data.success) {
-        await signIn(email, password);
 
-        // If we have assessment results, save them
-        if (assessmentResults) {
-          try {
-            await fetch(`${api.assessments}/submit`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${data.token}`,
-              },
-              body: JSON.stringify(assessmentResults),
-            });
-          } catch (error) {
-            console.warn("Failed to save assessment results after login");
-          }
-        }
-
-        toast.success("Connexion réussie");
-        navigate(from);
-      } else {
-        throw new Error(data.message || "Erreur de connexion");
+      if (!data.user.isAdmin) {
+        toast.error("Accès non autorisé");
+        return;
       }
+
+      await signIn(email, password);
+      toast.success("Connexion administrateur réussie");
+      navigate("/roadmap");
     } catch (error) {
       toast.error("Erreur de connexion");
     } finally {
@@ -68,15 +60,16 @@ function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0F] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 glass-card p-8 rounded-xl">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
-            {assessmentResults ? "Sauvegardez vos résultats" : "Connexion"}
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 bg-purple-600/20 rounded-xl flex items-center justify-center">
+            <Lock className="h-6 w-6 text-purple-400" />
+          </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-100">
+            Administration
           </h2>
-          {assessmentResults && (
-            <p className="mt-2 text-center text-sm text-gray-400">
-              Connectez-vous pour accéder à votre parcours personnalisé
-            </p>
-          )}
+          <p className="mt-2 text-sm text-gray-400">
+            Accès réservé aux administrateurs
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -91,7 +84,7 @@ function LoginPage() {
                 type="email"
                 required
                 className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-500 text-gray-100 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
-                placeholder="Adresse email"
+                placeholder="Email administrateur"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
               />
@@ -111,6 +104,21 @@ function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
               />
             </div>
+            <div>
+              <label htmlFor="adminCode" className="sr-only">
+                Code administrateur
+              </label>
+              <input
+                id="adminCode"
+                name="adminCode"
+                type="password"
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-500 text-gray-100 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Code administrateur"
+                value={adminCode}
+                onChange={e => setAdminCode(e.target.value)}
+              />
+            </div>
           </div>
 
           <div>
@@ -119,25 +127,8 @@ function LoginPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Connexion..." : "Se connecter"}
+              {loading ? "Connexion..." : "Connexion administrateur"}
             </button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-400">
-              Pas encore de compte ?{" "}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/register", {
-                    state: { assessmentResults, from },
-                  })
-                }
-                className="font-medium text-purple-400 hover:text-purple-300"
-              >
-                S'inscrire
-              </button>
-            </p>
           </div>
         </form>
       </div>
@@ -145,4 +136,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default AdminLoginPage;

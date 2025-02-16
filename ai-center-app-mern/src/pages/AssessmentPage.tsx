@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 import ChatInterface from "../components/ChatInterface";
 import { Message, Question } from "../types";
 import QuizComponent from "../components/QuizComponent";
@@ -9,9 +10,11 @@ import {
   generateRecommendations,
 } from "../utils/scoringSystem";
 import { api } from "../config/api";
+import { DEFAULT_QUESTIONS } from "../data/questions";
 
 const AssessmentPage = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome-message",
@@ -33,6 +36,7 @@ const AssessmentPage = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
+  const [assessmentResults, setAssessmentResults] = useState<any>(null);
 
   const generateMessageId = useCallback((prefix: string) => {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -114,17 +118,37 @@ const AssessmentPage = () => {
     setUserProfile(prev => ({ ...prev, domain }));
     addUserMessage(domain);
 
-    // Charger les questions en arrière-plan
     setLoading(true);
     try {
       const response = await fetch(`${api.assessmentQuestions(domain)}`);
       if (!response.ok)
         throw new Error("Erreur lors du chargement des questions");
       const data = await response.json();
-      setQuestions(data);
+
+      // Si l'API ne retourne pas de questions, utiliser les questions par défaut
+      if (!data || data.length === 0) {
+        const domainLower = domain.toLowerCase();
+        const defaultQuestions = DEFAULT_QUESTIONS.filter(
+          q =>
+            q.category.toLowerCase() === domainLower ||
+            (domainLower === "machine learning" && q.category === "ml") ||
+            (domainLower === "deep learning" && q.category === "dl")
+        );
+        setQuestions(defaultQuestions);
+      } else {
+        setQuestions(data);
+      }
     } catch (error) {
       console.error("Error loading questions:", error);
-      toast.error("Erreur lors du chargement des questions");
+      // En cas d'erreur, utiliser les questions par défaut
+      const domainLower = domain.toLowerCase();
+      const defaultQuestions = DEFAULT_QUESTIONS.filter(
+        q =>
+          q.category.toLowerCase() === domainLower ||
+          (domainLower === "machine learning" && q.category === "ml") ||
+          (domainLower === "deep learning" && q.category === "dl")
+      );
+      setQuestions(defaultQuestions);
     } finally {
       setLoading(false);
     }
@@ -216,115 +240,146 @@ const AssessmentPage = () => {
   const handleQuizComplete = async (score: number, responses: any[]) => {
     setCurrentStep("results");
 
-    try {
-      const categoryScores = calculateDetailedScore(questions, responses);
-      const recommendations = generateRecommendations(
-        categoryScores,
-        userProfile
-      );
+    const categoryScores = calculateDetailedScore(questions, responses);
+    const recommendations = generateRecommendations(
+      categoryScores,
+      userProfile
+    );
 
-      // Save assessment results
-      const response = await fetch(`${api.assessments}/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          category: userProfile.domain.toLowerCase(),
-          score,
-          responses,
-          recommendations,
-        }),
-      });
+    // Save results in state
+    setAssessmentResults({ categoryScores, recommendations });
 
-      if (!response.ok) {
-        throw new Error("Erreur lors de la sauvegarde des résultats");
+    // If user is authenticated, save results to backend
+    if (isAuthenticated && user) {
+      try {
+        const response = await fetch(`${api.assessments}/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            category: userProfile.domain.toLowerCase(),
+            score,
+            responses,
+            recommendations,
+          }),
+        });
+
+        if (!response.ok) {
+          console.warn(
+            "Failed to save assessment results, but continuing with display"
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to save assessment results:", error);
       }
+    }
 
-      // Display results
-      await addBotMessage(
-        "Voici votre évaluation détaillée :",
-        undefined,
-        <div className="mt-4 space-y-6">
-          {/* Profil */}
-          <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">
-              Votre Profil
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Niveau en mathématiques</span>
-                <span className="text-purple-400">{userProfile.mathLevel}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Niveau en programmation</span>
-                <span className="text-purple-400">
-                  {userProfile.programmingLevel}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Domaine d'intérêt</span>
-                <span className="text-purple-400">{userProfile.domain}</span>
-              </div>
+    // Display results
+    await addBotMessage(
+      "Voici votre évaluation détaillée :",
+      undefined,
+      <div className="mt-4 space-y-6">
+        {/* Profil */}
+        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+          <h3 className="text-xl font-bold text-gray-100 mb-4">Votre Profil</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Niveau en mathématiques</span>
+              <span className="text-purple-400">{userProfile.mathLevel}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Niveau en programmation</span>
+              <span className="text-purple-400">
+                {userProfile.programmingLevel}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Domaine d'intérêt</span>
+              <span className="text-purple-400">{userProfile.domain}</span>
             </div>
           </div>
+        </div>
 
-          {/* Scores */}
-          <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">
-              Résultats par Domaine
-            </h3>
-            {recommendations.map((result, index) => (
-              <div key={index} className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-300">{result.category}</span>
-                  <span className="text-lg font-semibold text-purple-400">
-                    {Math.round(result.score)}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
-                  <div
-                    className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${result.score}%` }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  {result.recommendations.map((rec, i) => (
-                    <p key={i} className="text-sm text-gray-400">
-                      • {rec}
-                    </p>
-                  ))}
-                </div>
+        {/* Scores */}
+        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+          <h3 className="text-xl font-bold text-gray-100 mb-4">
+            Résultats par Domaine
+          </h3>
+          {recommendations.map((result, index) => (
+            <div key={index} className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-gray-300">{result.category}</span>
+                <span className="text-lg font-semibold text-purple-400">
+                  {Math.round(result.score)}%
+                </span>
               </div>
-            ))}
-          </div>
+              <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+                <div
+                  className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${result.score}%` }}
+                />
+              </div>
+              <div className="space-y-2">
+                {result.recommendations.map((rec, i) => (
+                  <p key={i} className="text-sm text-gray-400">
+                    • {rec}
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
 
-          {/* Actions */}
-          <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h3 className="text-xl font-bold text-gray-100 mb-4">
-              Prochaines Étapes
-            </h3>
-            <div className="space-y-3">
+        {/* Actions */}
+        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
+          <h3 className="text-xl font-bold text-gray-100 mb-4">
+            Prochaines Étapes
+          </h3>
+          <div className="space-y-3">
+            {isAuthenticated ? (
               <button
                 onClick={() => navigate("/goals")}
                 className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
                 Voir les parcours recommandés
               </button>
-              <button
-                onClick={() => navigate("/")}
-                className="w-full py-3 px-4 border border-gray-600 hover:bg-gray-800 text-gray-300 rounded-lg transition-colors"
-              >
-                Retour à l'accueil
-              </button>
-            </div>
+            ) : (
+              <>
+                <button
+                  onClick={() =>
+                    navigate("/login", {
+                      state: {
+                        from: "/assessment",
+                        assessmentResults: {
+                          profile: userProfile,
+                          scores: categoryScores,
+                          recommendations,
+                        },
+                      },
+                    })
+                  }
+                  className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                >
+                  Se connecter pour voir les parcours recommandés
+                </button>
+                <p className="text-sm text-gray-400 text-center">
+                  Connectez-vous pour sauvegarder vos résultats et accéder à
+                  votre parcours personnalisé
+                </p>
+              </>
+            )}
+            <button
+              onClick={() => navigate("/")}
+              className="w-full py-3 px-4 border border-gray-600 hover:bg-gray-800 text-gray-300 rounded-lg transition-colors"
+            >
+              Retour à l'accueil
+            </button>
           </div>
         </div>
-      );
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Erreur lors de la sauvegarde des résultats");
-    }
+      </div>
+    );
   };
 
   const handleSend = async (message: string) => {

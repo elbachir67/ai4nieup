@@ -4,13 +4,14 @@ import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
 
-function LoginPage() {
+function RegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Get assessment results from location state if they exist
   const assessmentResults = location.state?.assessmentResults;
@@ -18,10 +19,16 @@ function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error("Les mots de passe ne correspondent pas");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch(api.auth.login, {
+      const response = await fetch(api.auth.register, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -30,36 +37,34 @@ function LoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur de connexion");
+        throw new Error("Erreur lors de l'inscription");
       }
 
       const data = await response.json();
-      if (data.success) {
-        await signIn(email, password);
 
-        // If we have assessment results, save them
-        if (assessmentResults) {
-          try {
-            await fetch(`${api.assessments}/submit`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${data.token}`,
-              },
-              body: JSON.stringify(assessmentResults),
-            });
-          } catch (error) {
-            console.warn("Failed to save assessment results after login");
-          }
+      // Sign in the user after successful registration
+      await signIn(email, password);
+
+      // If we have assessment results, save them
+      if (assessmentResults) {
+        try {
+          await fetch(`${api.assessments}/submit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.token}`,
+            },
+            body: JSON.stringify(assessmentResults),
+          });
+        } catch (error) {
+          console.warn("Failed to save assessment results after registration");
         }
-
-        toast.success("Connexion réussie");
-        navigate(from);
-      } else {
-        throw new Error(data.message || "Erreur de connexion");
       }
+
+      toast.success("Inscription réussie");
+      navigate(from);
     } catch (error) {
-      toast.error("Erreur de connexion");
+      toast.error("Erreur lors de l'inscription");
     } finally {
       setLoading(false);
     }
@@ -70,11 +75,11 @@ function LoginPage() {
       <div className="max-w-md w-full space-y-8 glass-card p-8 rounded-xl">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
-            {assessmentResults ? "Sauvegardez vos résultats" : "Connexion"}
+            {assessmentResults ? "Créez votre compte" : "Inscription"}
           </h2>
           {assessmentResults && (
             <p className="mt-2 text-center text-sm text-gray-400">
-              Connectez-vous pour accéder à votre parcours personnalisé
+              Créez un compte pour accéder à votre parcours personnalisé
             </p>
           )}
         </div>
@@ -111,6 +116,21 @@ function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
               />
             </div>
+            <div>
+              <label htmlFor="confirmPassword" className="sr-only">
+                Confirmer le mot de passe
+              </label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-700 bg-gray-800 placeholder-gray-500 text-gray-100 focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
+                placeholder="Confirmer le mot de passe"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+            </div>
           </div>
 
           <div>
@@ -119,23 +139,23 @@ function LoginPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Connexion..." : "Se connecter"}
+              {loading ? "Inscription..." : "S'inscrire"}
             </button>
           </div>
 
           <div className="text-center">
             <p className="text-sm text-gray-400">
-              Pas encore de compte ?{" "}
+              Déjà un compte ?{" "}
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/register", {
+                  navigate("/login", {
                     state: { assessmentResults, from },
                   })
                 }
                 className="font-medium text-purple-400 hover:text-purple-300"
               >
-                S'inscrire
+                Se connecter
               </button>
             </p>
           </div>
@@ -145,4 +165,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default RegisterPage;

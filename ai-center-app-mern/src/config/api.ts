@@ -1,6 +1,13 @@
 import { API_URL } from "./constants";
 
 export const api = {
+  // Auth endpoints
+  auth: {
+    login: `${API_URL}/api/auth/login`,
+    register: `${API_URL}/api/auth/register`,
+    profile: `${API_URL}/api/auth/profile`,
+  },
+
   // Base endpoints
   sections: `${API_URL}/api/sections`,
   steps: `${API_URL}/api/steps`,
