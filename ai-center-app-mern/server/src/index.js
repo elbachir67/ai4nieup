@@ -7,6 +7,7 @@ import { logger } from "./utils/logger.js";
 import connectDB from "./config/database.js";
 
 // Import routes
+import { authRoutes } from "./routes/auth.js";
 import { goalRoutes } from "./routes/goals.js";
 import { conceptRoutes } from "./routes/concepts.js";
 import { assessmentRoutes } from "./routes/assessments.js";
@@ -38,6 +39,7 @@ app.use(express.json());
 app.use(morgan("dev"));
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/api/concepts", conceptRoutes);
 app.use("/api/assessments", assessmentRoutes);
