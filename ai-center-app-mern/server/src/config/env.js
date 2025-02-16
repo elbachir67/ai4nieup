@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Required environment variables
-const requiredEnvVars = ["MONGODB_URI", "JWT_SECRET", "PORT"];
+const requiredEnvVars = ["MONGODB_URI", "PORT"];
 
 // Verify all required variables are present
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -26,10 +26,6 @@ if (missingEnvVars.length > 0) {
 export const config = {
   mongodb: {
     uri: process.env.MONGODB_URI,
-  },
-  jwt: {
-    secret: process.env.JWT_SECRET,
-    expiresIn: "7d",
   },
   server: {
     port: process.env.PORT || 5000,

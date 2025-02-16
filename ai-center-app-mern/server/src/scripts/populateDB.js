@@ -7,24 +7,15 @@ import { ConceptAssessment } from "../models/ConceptAssessment.js";
 import { LearnerProfile } from "../models/LearnerProfile.js";
 import { logger } from "../utils/logger.js";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables from the root .env file
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
-
-// Verify critical environment variables
-const requiredEnvVars = ["MONGODB_URI", "JWT_SECRET"];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-  logger.error(
-    `Missing required environment variables: ${missingEnvVars.join(", ")}`
-  );
-  process.exit(1);
-}
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
 
 // Ensure we have a MongoDB URI
 const MONGODB_URI =
@@ -34,17 +25,17 @@ const MONGODB_URI =
 const users = [
   {
     email: "admin@ucad.edu.sn",
-    password: "admin123", // Will be hashed
+    password: "Admin123!", // Changed for simplicity while debugging
     role: "admin",
   },
   {
     email: "student1@ucad.edu.sn",
-    password: "Student123!", // More secure password
+    password: "Student123!", // Changed for simplicity while debugging
     role: "user",
   },
   {
     email: "student2@ucad.edu.sn",
-    password: "Student456!", // More secure password
+    password: "Student456!", // Changed for simplicity while debugging
     role: "user",
   },
 ];
@@ -268,12 +259,14 @@ const assessments = [
 ];
 
 async function populateDatabase() {
+  let connection;
   try {
     logger.info("Attempting to connect to MongoDB at:", MONGODB_URI);
-    await mongoose.connect(MONGODB_URI);
+    connection = await mongoose.connect(MONGODB_URI);
     logger.info("Connected to MongoDB");
 
     // Clear ALL existing data
+    logger.info("Clearing existing data...");
     await Promise.all([
       User.deleteMany({}),
       LearnerProfile.deleteMany({}),
@@ -281,32 +274,69 @@ async function populateDatabase() {
       Concept.deleteMany({}),
       ConceptAssessment.deleteMany({}),
     ]);
-    logger.info("Cleared all existing data");
+    logger.info("Cleared existing data");
 
     // Create users and their profiles
+    logger.info("Creating users...");
     for (const userData of users) {
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = new User({
-        email: userData.email,
-        password: hashedPassword,
-        role: userData.role,
-      });
-      await user.save();
-      logger.info(`Created user: ${user.email} (${user.role})`);
+      try {
+        // Hash password manually first to verify the hashing process
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(userData.password, salt);
+        logger.info(`Generated hash for ${userData.email}:`, hashedPassword);
 
-      // Create learner profile for non-admin users
-      if (userData.role === "user") {
-        const learnerProfile = new LearnerProfile({
-          userId: user._id,
-          learningStyle: "visual",
-          preferences: {
-            mathLevel: "beginner",
-            programmingLevel: "beginner",
-            preferredDomain: "ml",
-          },
+        // Create and save user
+        const user = new User({
+          email: userData.email,
+          password: userData.password, // Use plain password, let the schema handle hashing
+          role: userData.role,
+          isActive: true,
         });
-        await learnerProfile.save();
-        logger.info(`Created learner profile for user: ${user.email}`);
+
+        const savedUser = await user.save();
+        logger.info(`Created user: ${savedUser.email} (${savedUser.role})`);
+
+        // Verify user creation
+        const verifyUser = await User.findOne({ email: userData.email });
+        if (!verifyUser) {
+          throw new Error(`Failed to verify user creation: ${userData.email}`);
+        }
+        logger.info(`Verified user creation: ${userData.email}`);
+
+        // Create learner profile for non-admin users
+        if (userData.role === "user") {
+          const learnerProfile = new LearnerProfile({
+            userId: savedUser._id,
+            learningStyle: "visual",
+            preferences: {
+              mathLevel: "beginner",
+              programmingLevel: "beginner",
+              preferredDomain: "ml",
+            },
+          });
+          await learnerProfile.save();
+          logger.info(`Created learner profile for user: ${userData.email}`);
+        }
+
+        // Test authentication
+        try {
+          const authenticatedUser = await User.findByCredentials(
+            userData.email,
+            userData.password
+          );
+          logger.info(
+            `Successfully authenticated user: ${authenticatedUser.email}`
+          );
+        } catch (authError) {
+          logger.error(
+            `Authentication test failed for ${userData.email}:`,
+            authError
+          );
+          throw authError;
+        }
+      } catch (error) {
+        logger.error(`Error processing user ${userData.email}:`, error);
+        throw error;
       }
     }
 
@@ -374,8 +404,10 @@ async function populateDatabase() {
     logger.error("Error populating database:", error);
     throw error;
   } finally {
-    await mongoose.disconnect();
-    logger.info("Disconnected from MongoDB");
+    if (connection) {
+      await mongoose.disconnect();
+      logger.info("Disconnected from MongoDB");
+    }
   }
 }
 

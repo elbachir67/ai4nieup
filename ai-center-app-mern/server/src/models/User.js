@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import { generateToken } from "../config/jwt.js";
+import jwt from "jsonwebtoken";
+import { logger } from "../utils/logger.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,14 +38,20 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    return next();
-  }
   try {
+    if (!this.isModified("password")) {
+      return next();
+    }
+
+    logger.info(`Hashing password for user: ${this.email}`);
     const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
+    const hash = await bcrypt.hash(this.password, salt);
+    logger.info(`Generated hash for ${this.email}:`, hash);
+
+    this.password = hash;
     next();
   } catch (error) {
+    logger.error("Error hashing password:", error);
     next(error);
   }
 });
@@ -52,41 +59,71 @@ userSchema.pre("save", async function (next) {
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
-    return await bcrypt.compare(candidatePassword, this.password);
+    logger.info(`Comparing password for user: ${this.email}`);
+    logger.info(`Stored hash for ${this.email}:`, this.password);
+    logger.info(`Candidate password length: ${candidatePassword.length}`);
+
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    logger.info(`Password comparison result for ${this.email}:`, isMatch);
+
+    return isMatch;
   } catch (error) {
-    return false;
+    logger.error(`Error comparing password for ${this.email}:`, error);
+    throw error;
   }
 };
 
 // Generate JWT token
 userSchema.methods.generateAuthToken = function () {
-  const payload = {
-    id: this._id,
-    email: this.email,
-    role: this.role,
-    iat: Date.now(),
-  };
+  try {
+    const payload = {
+      id: this._id,
+      email: this.email,
+      role: this.role,
+    };
 
-  return generateToken(payload);
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is not defined");
+    }
+
+    return jwt.sign(payload, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+  } catch (error) {
+    logger.error("Error generating auth token:", error);
+    throw error;
+  }
 };
 
 // Static method to find user by credentials
 userSchema.statics.findByCredentials = async function (email, password) {
-  const user = await this.findOne({ email, isActive: true });
-  if (!user) {
-    throw new Error("Invalid credentials");
+  try {
+    logger.info(`Attempting to find user by credentials: ${email}`);
+
+    const user = await this.findOne({ email, isActive: true });
+    if (!user) {
+      logger.info(`No user found with email: ${email}`);
+      throw new Error("Invalid credentials");
+    }
+
+    logger.info(`Found user: ${email}, checking password...`);
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      logger.info(`Password does not match for user: ${email}`);
+      throw new Error("Invalid credentials");
+    }
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    logger.info(`User authenticated successfully: ${email}`);
+    return user;
+  } catch (error) {
+    logger.error(`Authentication error for ${email}:`, error);
+    throw error;
   }
-
-  const isMatch = await user.comparePassword(password);
-  if (!isMatch) {
-    throw new Error("Invalid credentials");
-  }
-
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
-
-  return user;
 };
 
 export const User = mongoose.model("User", userSchema);

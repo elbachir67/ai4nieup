@@ -18,9 +18,7 @@ const registerValidation = [
   body("email").isEmail().normalizeEmail(),
   body("password")
     .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters long")
-    .matches(/\d/)
-    .withMessage("Password must contain a number"),
+    .withMessage("Password must be at least 6 characters long"),
 ];
 
 // Login route
@@ -60,10 +58,11 @@ router.post("/login", loginValidation, async (req, res) => {
         token,
       });
     } catch (error) {
+      logger.error("Login error:", error);
       return res.status(401).json({ error: "Invalid credentials" });
     }
   } catch (error) {
-    logger.error("Login error:", error);
+    logger.error("Server error during login:", error);
     res.status(500).json({ error: "Server error during login" });
   }
 });
@@ -88,7 +87,7 @@ router.post("/register", registerValidation, async (req, res) => {
     const user = new User({
       email,
       password,
-      role: "user", // Default role
+      role: "user",
       isActive: true,
       lastLogin: new Date(),
     });
@@ -112,57 +111,5 @@ router.post("/register", registerValidation, async (req, res) => {
     res.status(500).json({ error: "Error creating user" });
   }
 });
-
-// Get current user profile
-router.get("/profile", auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    res.json(user);
-  } catch (error) {
-    logger.error("Profile fetch error:", error);
-    res.status(500).json({ error: "Error fetching profile" });
-  }
-});
-
-// Update password
-router.put(
-  "/password",
-  auth,
-  [
-    body("currentPassword").exists(),
-    body("newPassword")
-      .isLength({ min: 6 })
-      .withMessage("New password must be at least 6 characters long")
-      .matches(/\d/)
-      .withMessage("New password must contain a number"),
-  ],
-  async (req, res) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
-
-      const { currentPassword, newPassword } = req.body;
-      const user = await User.findById(req.user.id);
-
-      const isMatch = await user.comparePassword(currentPassword);
-      if (!isMatch) {
-        return res.status(401).json({ error: "Current password is incorrect" });
-      }
-
-      user.password = newPassword;
-      await user.save();
-
-      res.json({ message: "Password updated successfully" });
-    } catch (error) {
-      logger.error("Password update error:", error);
-      res.status(500).json({ error: "Error updating password" });
-    }
-  }
-);
 
 export const authRoutes = router;
