@@ -1,13 +1,14 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
+import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import GoalsExplorerPage from "./pages/GoalsExplorerPage";
 import AssessmentPage from "./pages/AssessmentPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import RoadmapPage from "./pages/RoadmapPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
+import AddGoalPage from "./pages/AddGoalPage";
 
 function PrivateRoute({
   children,
@@ -31,29 +32,32 @@ function PrivateRoute({
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/assessment" element={<AssessmentPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/admin" element={<AdminLoginPage />} />
-      <Route
-        path="/goals"
-        element={
-          <PrivateRoute>
-            <GoalsExplorerPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/roadmap"
-        element={
-          <PrivateRoute>
-            <RoadmapPage />
-          </PrivateRoute>
-        }
-      />
-    </Routes>
+    <div className="min-h-screen bg-[#0A0A0F]">
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/assessment" element={<AssessmentPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/admin" element={<AdminLoginPage />} />
+        <Route
+          path="/goals"
+          element={
+            <PrivateRoute>
+              <GoalsExplorerPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/add-goal"
+          element={
+            <PrivateRoute adminOnly>
+              <AddGoalPage />
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+    </div>
   );
 }
 

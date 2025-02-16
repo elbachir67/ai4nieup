@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Edit, Trash2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import GoalCard from "../components/GoalCard";
 import { LearningGoal } from "../types";
 import { api } from "../config/api";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 
 function GoalsExplorerPage() {
+  const navigate = useNavigate();
+  const { isAdmin, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
@@ -13,30 +17,54 @@ function GoalsExplorerPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchGoals = async () => {
-      try {
-        const queryParams = new URLSearchParams();
-        if (selectedCategory !== "all")
-          queryParams.append("category", selectedCategory);
-        if (selectedDifficulty !== "all")
-          queryParams.append("difficulty", selectedDifficulty);
-
-        const response = await fetch(`${api.goals}?${queryParams.toString()}`);
-        if (!response.ok)
-          throw new Error("Erreur lors du chargement des objectifs");
-
-        const data = await response.json();
-        setGoals(data);
-      } catch (error) {
-        console.error("Erreur:", error);
-        toast.error("Erreur lors du chargement des objectifs");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchGoals();
   }, [selectedCategory, selectedDifficulty]);
+
+  const fetchGoals = async () => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (selectedCategory !== "all")
+        queryParams.append("category", selectedCategory);
+      if (selectedDifficulty !== "all")
+        queryParams.append("difficulty", selectedDifficulty);
+
+      const response = await fetch(`${api.goals}?${queryParams.toString()}`);
+      if (!response.ok)
+        throw new Error("Erreur lors du chargement des objectifs");
+
+      const data = await response.json();
+      setGoals(data);
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du chargement des objectifs");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (goalId: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet objectif ?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${api.goals}/${goalId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${user?.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la suppression");
+      }
+
+      toast.success("Objectif supprimé avec succès");
+      fetchGoals();
+    } catch (error) {
+      toast.error("Erreur lors de la suppression de l'objectif");
+    }
+  };
 
   const filteredGoals = goals.filter(goal => {
     const matchesSearch =
@@ -57,14 +85,26 @@ function GoalsExplorerPage() {
     <div className="min-h-screen bg-[#0A0A0F]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-100 mb-4">
-            Objectifs d'Apprentissage
-          </h1>
-          <p className="text-gray-400">
-            Explorez nos parcours d'apprentissage et trouvez celui qui
-            correspond à vos objectifs
-          </p>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-100 mb-4">
+              Objectifs d'Apprentissage
+            </h1>
+            <p className="text-gray-400">
+              Explorez nos parcours d'apprentissage et trouvez celui qui
+              correspond à vos objectifs
+            </p>
+          </div>
+
+          {isAdmin && (
+            <button
+              onClick={() => navigate("/add-goal")}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Nouvel Objectif
+            </button>
+          )}
         </div>
 
         {/* Search and Filters */}
@@ -111,11 +151,30 @@ function GoalsExplorerPage() {
         {/* Goals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredGoals.map(goal => (
-            <GoalCard
-              key={goal.id}
-              goal={goal}
-              onClick={() => console.log("Goal clicked:", goal.id)}
-            />
+            <div key={goal.id} className="relative">
+              <GoalCard
+                goal={goal}
+                onClick={() => {
+                  /* Gérer la navigation vers le détail de l'objectif */
+                }}
+              />
+              {isAdmin && (
+                <div className="absolute top-4 right-4 flex space-x-2">
+                  <button
+                    onClick={() => navigate(`/edit-goal/${goal.id}`)}
+                    className="p-2 bg-blue-500/20 text-blue-400 rounded-full hover:bg-blue-500/30 transition-colors"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(goal.id)}
+                    className="p-2 bg-red-500/20 text-red-400 rounded-full hover:bg-red-500/30 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 
