@@ -1,6 +1,6 @@
 import express from "express";
 import { Assessment } from "../models/Assessment.js";
-import { LearningGoal } from "../models/LearningGoal.js";
+import { Goal } from "../models/LearningGoal.js";
 import { logger } from "../utils/logger.js";
 
 const router = express.Router();

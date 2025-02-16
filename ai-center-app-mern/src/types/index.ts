@@ -1,13 +1,14 @@
-import { DivideIcon as LucideIcon } from 'lucide-react';
+import { DivideIcon as LucideIcon } from "lucide-react";
 
-export interface LearningGoal {
+export interface Goal {
   id: string;
   title: string;
   description: string;
-  category: 'ml' | 'dl' | 'data_science' | 'mlops';
+  category: "ml" | "dl" | "data_science" | "mlops" | "computer_vision" | "nlp";
+  estimatedDuration: number;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  careerOpportunities: string[];
   requiredConcepts: string[];
-  estimatedDuration: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
 }
 
 export interface Concept {
@@ -15,7 +16,7 @@ export interface Concept {
   name: string;
   description: string;
   category: string;
-  level: 'basic' | 'intermediate' | 'advanced';
+  level: "basic" | "intermediate" | "advanced";
   prerequisites: string[];
   resources: Resource[];
 }
@@ -23,7 +24,7 @@ export interface Concept {
 export interface Resource {
   id: string;
   title: string;
-  type: 'article' | 'video' | 'course' | 'book';
+  type: "article" | "video" | "course" | "book";
   url: string;
   duration: string;
 }
@@ -32,7 +33,7 @@ export interface Question {
   id: string;
   text: string;
   category: string;
-  difficulty: 'basic' | 'intermediate' | 'advanced';
+  difficulty: "basic" | "intermediate" | "advanced";
   options: {
     id: string;
     text: string;
@@ -43,7 +44,7 @@ export interface Question {
 
 export interface AssessmentResult {
   category: string;
-  level: 'basic' | 'intermediate' | 'advanced';
+  level: "basic" | "intermediate" | "advanced";
   score: number;
   recommendations: string[];
 }
@@ -51,7 +52,7 @@ export interface AssessmentResult {
 export interface Message {
   id: string;
   content: string;
-  type: 'bot' | 'user';
+  type: "bot" | "user";
   options?: string[];
   component?: React.ReactNode;
 }

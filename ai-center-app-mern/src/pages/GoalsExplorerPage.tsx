@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Edit, Trash2, Plus } from "lucide-react";
+import { Search, Filter, Edit, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GoalCard from "../components/GoalCard";
-import { LearningGoal } from "../types";
+import { Goal } from "../types";
 import { api } from "../config/api";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
@@ -13,12 +13,8 @@ function GoalsExplorerPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
-  const [goals, setGoals] = useState<LearningGoal[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchGoals();
-  }, [selectedCategory, selectedDifficulty]);
 
   const fetchGoals = async () => {
     try {
@@ -41,6 +37,10 @@ function GoalsExplorerPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchGoals();
+  }, [selectedCategory, selectedDifficulty]);
 
   const handleDelete = async (goalId: string) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet objectif ?")) {
@@ -95,16 +95,6 @@ function GoalsExplorerPage() {
               correspond à vos objectifs
             </p>
           </div>
-
-          {isAdmin && (
-            <button
-              onClick={() => navigate("/add-goal")}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Nouvel Objectif
-            </button>
-          )}
         </div>
 
         {/* Search and Filters */}
@@ -133,6 +123,8 @@ function GoalsExplorerPage() {
               <option value="dl">Deep Learning</option>
               <option value="data_science">Data Science</option>
               <option value="mlops">MLOps</option>
+              <option value="computer_vision">Computer Vision</option>
+              <option value="nlp">NLP</option>
             </select>
 
             <select
@@ -151,24 +143,31 @@ function GoalsExplorerPage() {
         {/* Goals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredGoals.map(goal => (
-            <div key={goal.id} className="relative">
+            <div key={goal.id} className="relative group">
               <GoalCard
                 goal={goal}
                 onClick={() => {
-                  /* Gérer la navigation vers le détail de l'objectif */
+                  /* Navigation vers le détail de l'objectif */
                 }}
+                className="relative"
               />
               {isAdmin && (
-                <div className="absolute top-4 right-4 flex space-x-2">
+                <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => navigate(`/edit-goal/${goal.id}`)}
-                    className="p-2 bg-blue-500/20 text-blue-400 rounded-full hover:bg-blue-500/30 transition-colors"
+                    onClick={e => {
+                      e.stopPropagation();
+                      navigate(`/edit-goal/${goal.id}`);
+                    }}
+                    className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(goal.id)}
-                    className="p-2 bg-red-500/20 text-red-400 rounded-full hover:bg-red-500/30 transition-colors"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDelete(goal.id);
+                    }}
+                    className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

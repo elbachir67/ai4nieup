@@ -1,5 +1,5 @@
 // Import all models
-import { LearningGoal } from "./LearningGoal.js";
+import { Goal } from "./LearningGoal.js";
 import { Concept } from "./Concept.js";
 import { ConceptAssessment } from "./ConceptAssessment.js";
 import { LearnerProfile } from "./LearnerProfile.js";
@@ -8,7 +8,7 @@ import { LearningData } from "./LearningData.js";
 
 // Export all models
 export {
-  LearningGoal,
+  Goal,
   Concept,
   ConceptAssessment,
   LearnerProfile,

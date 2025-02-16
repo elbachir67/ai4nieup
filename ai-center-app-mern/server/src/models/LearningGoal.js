@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const learningGoalSchema = new mongoose.Schema(
+const goalSchema = new mongoose.Schema(
   {
     title: {
       type: String,
@@ -12,35 +12,47 @@ const learningGoalSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ["ml", "dl", "data_science", "mlops", "computer_vision", "nlp"],
       required: true,
+      enum: ["ml", "dl", "data_science", "mlops", "computer_vision", "nlp"],
     },
+    estimatedDuration: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    difficulty: {
+      type: String,
+      required: true,
+      enum: ["beginner", "intermediate", "advanced"],
+    },
+    careerOpportunities: [
+      {
+        type: String,
+        required: true,
+      },
+    ],
     requiredConcepts: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Concept",
       },
     ],
-    estimatedDuration: {
-      type: Number,
-      required: true,
-    },
-    careerOpportunities: [
-      {
-        type: String,
-      },
-    ],
-    difficulty: {
-      type: String,
-      enum: ["beginner", "intermediate", "advanced"],
-      required: true,
-    },
   },
   {
     timestamps: true,
+    toJSON: {
+      virtuals: true,
+      transform: function (doc, ret) {
+        ret.id = ret._id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 
-learningGoalSchema.index({ category: 1, difficulty: 1 });
+// Index pour améliorer les performances des requêtes
+goalSchema.index({ category: 1, difficulty: 1 });
 
-export const LearningGoal = mongoose.model("LearningGoal", learningGoalSchema);
+export const Goal = mongoose.model("Goal", goalSchema);

@@ -9,6 +9,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import AddGoalPage from "./pages/AddGoalPage";
+import EditGoalPage from "./pages/EditGoalPage";
 
 function PrivateRoute({
   children,
@@ -53,6 +54,14 @@ function App() {
           element={
             <PrivateRoute adminOnly>
               <AddGoalPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/edit-goal/:goalId"
+          element={
+            <PrivateRoute adminOnly>
+              <EditGoalPage />
             </PrivateRoute>
           }
         />
