@@ -4,6 +4,7 @@ import { useAuth } from "./contexts/AuthContext";
 import Navbar from "./components/Navbar";
 import HomePage from "./pages/HomePage";
 import GoalsExplorerPage from "./pages/GoalsExplorerPage";
+import GoalDetailPage from "./pages/GoalDetailPage";
 import AssessmentPage from "./pages/AssessmentPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -41,14 +42,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/admin" element={<AdminLoginPage />} />
-        <Route
-          path="/goals"
-          element={
-            <PrivateRoute>
-              <GoalsExplorerPage />
-            </PrivateRoute>
-          }
-        />
+        <Route path="/goals" element={<GoalsExplorerPage />} />
+        <Route path="/goals/:goalId" element={<GoalDetailPage />} />
         <Route
           path="/add-goal"
           element={

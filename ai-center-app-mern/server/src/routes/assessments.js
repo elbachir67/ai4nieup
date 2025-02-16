@@ -103,4 +103,5 @@ router.post("/submit", async (req, res) => {
   }
 });
 
-export const assessmentRoutes = router;
+// Export the router directly
+export default router;

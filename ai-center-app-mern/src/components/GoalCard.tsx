@@ -1,18 +1,16 @@
 import React from "react";
 import { Goal } from "../types";
 import { BookOpen, Clock, BarChart } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface GoalCardProps {
   goal: Goal;
-  onClick?: () => void;
   className?: string;
 }
 
-const GoalCard: React.FC<GoalCardProps> = ({
-  goal,
-  onClick,
-  className = "",
-}) => {
+const GoalCard: React.FC<GoalCardProps> = ({ goal, className = "" }) => {
+  const navigate = useNavigate();
+
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "beginner":
@@ -45,19 +43,23 @@ const GoalCard: React.FC<GoalCardProps> = ({
     }
   };
 
+  const handleClick = () => {
+    navigate(`/goals/${goal.id}`);
+  };
+
   return (
     <div
       className={`glass-card rounded-xl p-6 hover:scale-105 transition-all duration-300 cursor-pointer ${className}`}
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-100 pr-20">{goal.title}</h3>
         <span
           className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(
-            goal.difficulty
+            goal.level
           )}`}
         >
-          {goal.difficulty}
+          {goal.level}
         </span>
       </div>
 
@@ -70,7 +72,7 @@ const GoalCard: React.FC<GoalCardProps> = ({
         </div>
         <div className="flex items-center">
           <BookOpen className="w-4 h-4 mr-1" />
-          <span>{goal.requiredConcepts?.length || 0} concepts</span>
+          <span>{goal.modules?.length || 0} modules</span>
         </div>
         <div className="flex items-center">
           <BarChart className="w-4 h-4 mr-1" />

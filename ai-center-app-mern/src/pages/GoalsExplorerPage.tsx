@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Edit, Trash2 } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import GoalCard from "../components/GoalCard";
 import { Goal } from "../types";
@@ -9,7 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 
 function GoalsExplorerPage() {
   const navigate = useNavigate();
-  const { isAdmin, user } = useAuth();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("all");
@@ -24,7 +24,19 @@ function GoalsExplorerPage() {
       if (selectedDifficulty !== "all")
         queryParams.append("difficulty", selectedDifficulty);
 
-      const response = await fetch(`${api.goals}?${queryParams.toString()}`);
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+
+      // Ajouter le token d'authentification si l'utilisateur est connecté
+      if (user?.token) {
+        headers["Authorization"] = `Bearer ${user.token}`;
+      }
+
+      const response = await fetch(`${api.goals}?${queryParams.toString()}`, {
+        headers,
+      });
+
       if (!response.ok)
         throw new Error("Erreur lors du chargement des objectifs");
 
@@ -40,31 +52,7 @@ function GoalsExplorerPage() {
 
   useEffect(() => {
     fetchGoals();
-  }, [selectedCategory, selectedDifficulty]);
-
-  const handleDelete = async (goalId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet objectif ?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${api.goals}/${goalId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${user?.token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Erreur lors de la suppression");
-      }
-
-      toast.success("Objectif supprimé avec succès");
-      fetchGoals();
-    } catch (error) {
-      toast.error("Erreur lors de la suppression de l'objectif");
-    }
-  };
+  }, [selectedCategory, selectedDifficulty, user]);
 
   const filteredGoals = goals.filter(goal => {
     const matchesSearch =
@@ -143,37 +131,7 @@ function GoalsExplorerPage() {
         {/* Goals Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredGoals.map(goal => (
-            <div key={goal.id} className="relative group">
-              <GoalCard
-                goal={goal}
-                onClick={() => {
-                  /* Navigation vers le détail de l'objectif */
-                }}
-                className="relative"
-              />
-              {isAdmin && (
-                <div className="absolute top-4 right-4 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigate(`/edit-goal/${goal.id}`);
-                    }}
-                    className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleDelete(goal.id);
-                    }}
-                    className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+            <GoalCard key={goal.id} goal={goal} />
           ))}
         </div>
 

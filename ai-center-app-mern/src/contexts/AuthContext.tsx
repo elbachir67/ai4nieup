@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface User {
   id: string;
@@ -28,6 +28,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedUser = localStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser).isAdmin : false;
   });
+
+  useEffect(() => {
+    // Vérifier la validité du token au chargement
+    const validateToken = async () => {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) {
+        const userData = JSON.parse(savedUser);
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/api/auth/profile`,
+            {
+              headers: {
+                Authorization: `Bearer ${userData.token}`,
+              },
+            }
+          );
+
+          if (!response.ok) {
+            // Token invalide ou expiré
+            signOut();
+          }
+        } catch (error) {
+          signOut();
+        }
+      }
+    };
+
+    validateToken();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);

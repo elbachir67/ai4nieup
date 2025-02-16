@@ -6,27 +6,50 @@ export interface Goal {
   description: string;
   category: "ml" | "dl" | "data_science" | "mlops" | "computer_vision" | "nlp";
   estimatedDuration: number;
-  difficulty: "beginner" | "intermediate" | "advanced";
-  careerOpportunities: string[];
-  requiredConcepts: string[];
+  level: "beginner" | "intermediate" | "advanced";
+  prerequisites: {
+    category: string;
+    skills: {
+      name: string;
+      level: string;
+    }[];
+  }[];
+  modules: {
+    title: string;
+    description: string;
+    duration: number;
+    skills: {
+      name: string;
+      level: string;
+    }[];
+    resources: {
+      title: string;
+      type: string;
+      url: string;
+      duration: number;
+    }[];
+    validationCriteria: string[];
+  }[];
+  careerOpportunities: {
+    title: string;
+    description: string;
+    averageSalary: string;
+    companies: string[];
+  }[];
+  certification?: {
+    available: boolean;
+    name: string;
+    provider: string;
+    url: string;
+  };
 }
 
-export interface Concept {
+export interface Message {
   id: string;
-  name: string;
-  description: string;
-  category: string;
-  level: "basic" | "intermediate" | "advanced";
-  prerequisites: string[];
-  resources: Resource[];
-}
-
-export interface Resource {
-  id: string;
-  title: string;
-  type: "article" | "video" | "course" | "book";
-  url: string;
-  duration: string;
+  content: string;
+  type: "bot" | "user";
+  options?: string[];
+  component?: React.ReactNode;
 }
 
 export interface Question {
@@ -47,12 +70,4 @@ export interface AssessmentResult {
   level: "basic" | "intermediate" | "advanced";
   score: number;
   recommendations: string[];
-}
-
-export interface Message {
-  id: string;
-  content: string;
-  type: "bot" | "user";
-  options?: string[];
-  component?: React.ReactNode;
 }
