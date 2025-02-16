@@ -247,7 +247,12 @@ const AssessmentPage = () => {
     );
 
     // Save results in state
-    setAssessmentResults({ categoryScores, recommendations });
+    setAssessmentResults({
+      profile: userProfile,
+      categoryScores,
+      recommendations,
+      responses,
+    });
 
     // If user is authenticated, save results to backend
     if (isAuthenticated && user) {
@@ -351,11 +356,12 @@ const AssessmentPage = () => {
                   onClick={() =>
                     navigate("/login", {
                       state: {
-                        from: "/assessment",
+                        from: "/goals",
                         assessmentResults: {
                           profile: userProfile,
                           scores: categoryScores,
                           recommendations,
+                          responses,
                         },
                       },
                     })
