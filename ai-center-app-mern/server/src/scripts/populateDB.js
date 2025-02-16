@@ -301,6 +301,26 @@ async function populateDatabase() {
       logger.info(`Created user: ${user.email} (${user.role})`);
     }
 
+    // Create admin user
+    const adminPassword = await bcrypt.hash("admin123", 10);
+    const adminUser = new User({
+      email: "admin@ucad.edu.sn",
+      password: adminPassword,
+      role: "admin",
+    });
+    await adminUser.save();
+    logger.info("Created admin user");
+
+    // Create test user
+    const userPassword = await bcrypt.hash("user123", 10);
+    const testUser = new User({
+      email: "user@ucad.edu.sn",
+      password: userPassword,
+      role: "user",
+    });
+    await testUser.save();
+    logger.info("Created test user");
+
     // Insert concepts
     const conceptMap = new Map();
     for (const conceptData of concepts) {

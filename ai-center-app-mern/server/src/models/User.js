@@ -15,9 +15,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     minlength: 6,
   },
-  isAdmin: {
-    type: Boolean,
-    default: false,
+  role: {
+    type: String,
+    enum: ["user", "admin"],
+    default: "user",
   },
   createdAt: {
     type: Date,
@@ -36,9 +37,18 @@ userSchema.pre("save", async function (next) {
 // Generate JWT token
 userSchema.methods.generateAuthToken = function () {
   return jwt.sign(
-    { id: this._id, isAdmin: this.isAdmin },
+    {
+      id: this._id,
+      email: this.email,
+      role: this.role,
+      createdAt: this.createdAt,
+      iat: Date.now(),
+    },
     process.env.JWT_SECRET,
-    { expiresIn: "7d" }
+    {
+      expiresIn: "7d",
+      algorithm: "HS256",
+    }
   );
 };
 

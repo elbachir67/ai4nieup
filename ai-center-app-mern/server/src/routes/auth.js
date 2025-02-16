@@ -27,8 +27,8 @@ router.post(
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      // For admin login, verify admin status
-      if (isAdminLogin && !user.isAdmin) {
+      // For admin login, verify admin role
+      if (isAdminLogin && user.role !== "admin") {
         return res.status(403).json({ error: "Not authorized" });
       }
 
@@ -44,7 +44,7 @@ router.post(
         user: {
           id: user._id,
           email: user.email,
-          isAdmin: user.isAdmin,
+          isAdmin: user.role === "admin",
         },
         token,
       });
@@ -74,7 +74,7 @@ router.post(
       user = new User({
         email,
         password,
-        isAdmin: false,
+        role: "user", // Default role is user
       });
 
       await user.save();
@@ -86,7 +86,7 @@ router.post(
         user: {
           id: user._id,
           email: user.email,
-          isAdmin: user.isAdmin,
+          isAdmin: user.role === "admin",
         },
         token,
       });

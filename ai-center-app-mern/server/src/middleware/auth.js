@@ -1,10 +1,10 @@
-import jwt from 'jsonwebtoken';
-import { User } from '../models/User.js';
+import jwt from "jsonwebtoken";
+import { User } from "../models/User.js";
 
 export const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    const token = req.header("Authorization")?.replace("Bearer ", "");
+
     if (!token) {
       throw new Error();
     }
@@ -19,19 +19,19 @@ export const auth = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ error: 'Please authenticate' });
+    res.status(401).json({ error: "Please authenticate" });
   }
 };
 
 export const adminAuth = async (req, res, next) => {
   try {
     await auth(req, res, () => {
-      if (req.user.role !== 'admin') {
+      if (req.user.role !== "admin") {
         throw new Error();
       }
       next();
     });
   } catch (error) {
-    res.status(403).json({ error: 'Admin access required' });
+    res.status(403).json({ error: "Admin access required" });
   }
 };
