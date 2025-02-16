@@ -9,7 +9,7 @@ function Navbar() {
   const { isAdmin, signOut, user, isAuthenticated } = useAuth();
 
   const isActive = (path: string) => {
-    return location.pathname === path ? "text-blue-600 after:w-full" : "";
+    return location.pathname === path ? "active" : "";
   };
 
   const handleSignOut = () => {
@@ -23,7 +23,7 @@ function Navbar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
-              <BookOpen className="w-8 h-8 text-blue-600 animate-float" />
+              <BookOpen className="w-8 h-8 text-purple-500 animate-float" />
               <span className="ml-2 text-xl font-bold gradient-text">
                 IA4Nieup
               </span>
@@ -48,7 +48,7 @@ function Navbar() {
               <>
                 <Link
                   to="/add-goal"
-                  className="flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200"
+                  className="flex items-center px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors duration-200"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Nouvel Objectif
@@ -73,7 +73,7 @@ function Navbar() {
             ) : (
               <Link
                 to="/login"
-                className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors duration-200"
+                className="px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors duration-200"
               >
                 Connexion
               </Link>
