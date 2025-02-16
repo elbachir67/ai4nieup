@@ -15,21 +15,21 @@ dotenv.config();
 const MONGODB_URI =
   process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ucad_ia";
 
-// Sample users data
+// Sample users data with more secure passwords
 const users = [
   {
     email: "admin@ucad.edu.sn",
-    password: "2468", // Admin password
+    password: "admin123", // Will be hashed
     role: "admin",
   },
   {
     email: "student1@ucad.edu.sn",
-    password: "1234",
+    password: "Student123!", // More secure password
     role: "user",
   },
   {
     email: "student2@ucad.edu.sn",
-    password: "1234",
+    password: "Student456!", // More secure password
     role: "user",
   },
 ];
@@ -58,7 +58,6 @@ const concepts = [
     level: "intermediate",
     prerequisites: ["Algèbre Linéaire"],
   },
-
   // Programming Fundamentals
   {
     name: "Python pour l'IA",
@@ -81,7 +80,6 @@ const concepts = [
     level: "intermediate",
     prerequisites: ["NumPy et Pandas"],
   },
-
   // Machine Learning
   {
     name: "Apprentissage Supervisé",
@@ -104,7 +102,6 @@ const concepts = [
     level: "intermediate",
     prerequisites: ["Apprentissage Supervisé"],
   },
-
   // Deep Learning
   {
     name: "Deep Learning Fondamental",
@@ -197,7 +194,6 @@ const assessments = [
     timeLimit: 30,
     difficulty: "basic",
   },
-
   // Programming Assessments
   {
     conceptName: "Python pour l'IA",
@@ -226,7 +222,6 @@ const assessments = [
     timeLimit: 30,
     difficulty: "basic",
   },
-
   // Machine Learning Assessments
   {
     conceptName: "Apprentissage Supervisé",
@@ -260,21 +255,20 @@ const assessments = [
 async function populateDatabase() {
   try {
     logger.info("Attempting to connect to MongoDB at:", MONGODB_URI);
-
     await mongoose.connect(MONGODB_URI);
     logger.info("Connected to MongoDB");
 
-    // Clear existing data
+    // Clear ALL existing data
     await Promise.all([
       User.deleteMany({}),
+      LearnerProfile.deleteMany({}),
       LearningGoal.deleteMany({}),
       Concept.deleteMany({}),
       ConceptAssessment.deleteMany({}),
-      LearnerProfile.deleteMany({}),
     ]);
-    logger.info("Cleared existing data");
+    logger.info("Cleared all existing data");
 
-    // Create users
+    // Create users and their profiles
     for (const userData of users) {
       const hashedPassword = await bcrypt.hash(userData.password, 10);
       const user = new User({
@@ -283,8 +277,9 @@ async function populateDatabase() {
         role: userData.role,
       });
       await user.save();
+      logger.info(`Created user: ${user.email} (${user.role})`);
 
-      // Create learner profile for each user
+      // Create learner profile for non-admin users
       if (userData.role === "user") {
         const learnerProfile = new LearnerProfile({
           userId: user._id,
@@ -296,37 +291,16 @@ async function populateDatabase() {
           },
         });
         await learnerProfile.save();
+        logger.info(`Created learner profile for user: ${user.email}`);
       }
-
-      logger.info(`Created user: ${user.email} (${user.role})`);
     }
 
-    // Create admin user
-    const adminPassword = await bcrypt.hash("admin123", 10);
-    const adminUser = new User({
-      email: "admin@ucad.edu.sn",
-      password: adminPassword,
-      role: "admin",
-    });
-    await adminUser.save();
-    logger.info("Created admin user");
-
-    // Create test user
-    const userPassword = await bcrypt.hash("user123", 10);
-    const testUser = new User({
-      email: "user@ucad.edu.sn",
-      password: userPassword,
-      role: "user",
-    });
-    await testUser.save();
-    logger.info("Created test user");
-
-    // Insert concepts
+    // Insert concepts with prerequisites handling
     const conceptMap = new Map();
     for (const conceptData of concepts) {
       const concept = new Concept({
         ...conceptData,
-        prerequisites: [],
+        prerequisites: [], // Initially empty, will update later
       });
       await concept.save();
       conceptMap.set(concept.name, concept._id);
@@ -345,19 +319,20 @@ async function populateDatabase() {
       }
     }
 
-    // Insert learning goals
+    // Insert learning goals with concept references
     for (const goalData of learningGoals) {
       const goal = new LearningGoal({
         ...goalData,
         requiredConcepts: concepts
           .filter(c => c.category === goalData.category)
-          .map(c => conceptMap.get(c.name)),
+          .map(c => conceptMap.get(c.name))
+          .filter(id => id), // Remove any undefined values
       });
       await goal.save();
       logger.info(`Created learning goal: ${goal.title}`);
     }
 
-    // Insert assessments
+    // Insert concept assessments
     for (const assessmentData of assessments) {
       const concept = await Concept.findOne({
         name: assessmentData.conceptName,
@@ -372,6 +347,7 @@ async function populateDatabase() {
         });
         await assessment.save();
 
+        // Update concept with assessment reference
         concept.assessmentTest = assessment._id;
         await concept.save();
         logger.info(`Created assessment for concept: ${concept.name}`);

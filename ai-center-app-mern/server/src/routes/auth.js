@@ -32,12 +32,25 @@ router.post(
         return res.status(403).json({ error: "Not authorized" });
       }
 
-      const isMatch = await user.comparePassword(password);
+      const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      const token = user.generateAuthToken();
+      const token = jwt.sign(
+        {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          createdAt: user.createdAt,
+          iat: Date.now(),
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+          algorithm: "HS256",
+        }
+      );
 
       res.json({
         success: true,
@@ -70,16 +83,32 @@ router.post(
         return res.status(400).json({ error: "User already exists" });
       }
 
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
       // Create user
       user = new User({
         email,
-        password,
+        password: hashedPassword,
         role: "user", // Default role is user
       });
 
       await user.save();
 
-      const token = user.generateAuthToken();
+      const token = jwt.sign(
+        {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          createdAt: user.createdAt,
+          iat: Date.now(),
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "7d",
+          algorithm: "HS256",
+        }
+      );
 
       res.status(201).json({
         success: true,
