@@ -12,9 +12,42 @@ import {
 import { api } from "../config/api";
 import { DEFAULT_QUESTIONS } from "../data/questions";
 
+type DomainKey =
+  | "Machine Learning"
+  | "Deep Learning"
+  | "Computer Vision"
+  | "NLP"
+  | "MLOps";
+type DomainValue = "ml" | "dl" | "computer_vision" | "nlp" | "mlops";
+
+const DOMAIN_MAPPING: Record<DomainKey, DomainValue> = {
+  "Machine Learning": "ml",
+  "Deep Learning": "dl",
+  "Computer Vision": "computer_vision",
+  NLP: "nlp",
+  MLOps: "mlops",
+};
+
+// Mapping des niveaux affichés vers les valeurs d'énumération
+const LEVEL_MAPPING: Record<string, string> = {
+  "Débutant (bases d'algèbre et calcul)": "beginner",
+  "Intermédiaire (calcul matriciel, probabilités)": "intermediate",
+  "Avancé (optimisation, statistiques avancées)": "advanced",
+  "Expert (théorie approfondie)": "expert",
+  "Débutant (notions de base)": "beginner",
+  "Intermédiaire (fonctions, classes, bibliothèques)": "intermediate",
+  "Avancé (frameworks, projets complexes)": "advanced",
+  "Expert (contribution open source, optimisation)": "expert",
+};
+
 const AssessmentPage = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    hasCompletedAssessment,
+    checkAssessmentStatus,
+  } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome-message",
@@ -36,7 +69,13 @@ const AssessmentPage = () => {
   const [quizStarted, setQuizStarted] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
-  const [assessmentResults, setAssessmentResults] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      localStorage.setItem("redirectAfterLogin", "/assessment");
+      navigate("/login");
+    }
+  }, [isAuthenticated, navigate]);
 
   const generateMessageId = useCallback((prefix: string) => {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -88,7 +127,10 @@ const AssessmentPage = () => {
   );
 
   const handleMathLevel = async (level: string) => {
-    setUserProfile(prev => ({ ...prev, mathLevel: level }));
+    setUserProfile(prev => ({
+      ...prev,
+      mathLevel: LEVEL_MAPPING[level] || level,
+    }));
     addUserMessage(level);
 
     setCurrentStep("programming");
@@ -104,7 +146,10 @@ const AssessmentPage = () => {
   };
 
   const handleProgrammingLevel = async (level: string) => {
-    setUserProfile(prev => ({ ...prev, programmingLevel: level }));
+    setUserProfile(prev => ({
+      ...prev,
+      programmingLevel: LEVEL_MAPPING[level] || level,
+    }));
     addUserMessage(level);
 
     setCurrentStep("domain");
@@ -114,25 +159,23 @@ const AssessmentPage = () => {
     );
   };
 
-  const handleDomainSelection = async (domain: string) => {
-    setUserProfile(prev => ({ ...prev, domain }));
+  const handleDomainSelection = async (domain: DomainKey) => {
+    const mappedDomain = DOMAIN_MAPPING[domain];
+    setUserProfile(prev => ({ ...prev, domain: mappedDomain }));
     addUserMessage(domain);
 
     setLoading(true);
     try {
-      const response = await fetch(`${api.assessmentQuestions(domain)}`);
+      const response = await fetch(
+        `${api.assessmentQuestions}?domain=${mappedDomain}`
+      );
       if (!response.ok)
         throw new Error("Erreur lors du chargement des questions");
       const data = await response.json();
 
-      // Si l'API ne retourne pas de questions, utiliser les questions par défaut
       if (!data || data.length === 0) {
-        const domainLower = domain.toLowerCase();
         const defaultQuestions = DEFAULT_QUESTIONS.filter(
-          q =>
-            q.category.toLowerCase() === domainLower ||
-            (domainLower === "machine learning" && q.category === "ml") ||
-            (domainLower === "deep learning" && q.category === "dl")
+          q => q.category === mappedDomain
         );
         setQuestions(defaultQuestions);
       } else {
@@ -140,13 +183,8 @@ const AssessmentPage = () => {
       }
     } catch (error) {
       console.error("Error loading questions:", error);
-      // En cas d'erreur, utiliser les questions par défaut
-      const domainLower = domain.toLowerCase();
       const defaultQuestions = DEFAULT_QUESTIONS.filter(
-        q =>
-          q.category.toLowerCase() === domainLower ||
-          (domainLower === "machine learning" && q.category === "ml") ||
-          (domainLower === "deep learning" && q.category === "dl")
+        q => q.category === mappedDomain
       );
       setQuestions(defaultQuestions);
     } finally {
@@ -156,7 +194,7 @@ const AssessmentPage = () => {
     const recommendations = getInitialRecommendations(
       userProfile.mathLevel,
       userProfile.programmingLevel,
-      domain
+      mappedDomain
     );
 
     await addBotMessage(
@@ -172,38 +210,38 @@ const AssessmentPage = () => {
   ) => {
     let recommendations = [];
 
-    if (mathLevel.includes("Débutant")) {
+    if (mathLevel.includes("beginner")) {
       recommendations.push(
         "• Renforcement recommandé en mathématiques fondamentales"
       );
     }
 
-    if (programmingLevel.includes("Débutant")) {
+    if (programmingLevel.includes("beginner")) {
       recommendations.push(
         "• Focus initial sur les bases de Python et ses bibliothèques"
       );
     }
 
     switch (domain) {
-      case "Machine Learning":
+      case "ml":
         recommendations.push(
           "• Parcours orienté algorithmes classiques et statistiques"
         );
         break;
-      case "Deep Learning":
+      case "dl":
         recommendations.push(
           "• Accent sur les architectures de réseaux neuronaux"
         );
         break;
-      case "Computer Vision":
+      case "computer_vision":
         recommendations.push("• Focus sur le traitement d'images et les CNNs");
         break;
-      case "NLP":
+      case "nlp":
         recommendations.push(
           "• Orientation vers le traitement du langage naturel"
         );
         break;
-      case "MLOps":
+      case "mlops":
         recommendations.push(
           "• Concentration sur le déploiement et la maintenance"
         );
@@ -246,146 +284,61 @@ const AssessmentPage = () => {
       userProfile
     );
 
-    // Save results in state
-    setAssessmentResults({
-      profile: userProfile,
-      categoryScores,
-      recommendations,
-      responses,
-    });
-
-    // If user is authenticated, save results to backend
     if (isAuthenticated && user) {
       try {
-        const response = await fetch(`${api.assessments}/submit`, {
+        // Sauvegarder les résultats de l'évaluation
+        const assessmentResponse = await fetch(`${api.assessments}/submit`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${user.token}`,
           },
           body: JSON.stringify({
-            category: userProfile.domain.toLowerCase(),
+            category: userProfile.domain,
             score,
             responses,
             recommendations,
           }),
         });
 
-        if (!response.ok) {
-          console.warn(
-            "Failed to save assessment results, but continuing with display"
-          );
+        if (!assessmentResponse.ok) {
+          throw new Error("Erreur lors de la sauvegarde des résultats");
         }
+
+        // Mettre à jour le profil utilisateur
+        const profileResponse = await fetch(`${api.profiles}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user.token}`,
+          },
+          body: JSON.stringify({
+            learningStyle: "visual",
+            preferences: {
+              mathLevel: userProfile.mathLevel,
+              programmingLevel: userProfile.programmingLevel,
+              preferredDomain: userProfile.domain,
+            },
+          }),
+        });
+
+        if (!profileResponse.ok) {
+          throw new Error("Erreur lors de la mise à jour du profil");
+        }
+
+        // Mettre à jour le statut de l'évaluation
+        await checkAssessmentStatus();
+
+        // Rediriger vers les objectifs
+        toast.success(
+          "Évaluation terminée ! Redirection vers vos objectifs personnalisés..."
+        );
+        navigate("/goals");
       } catch (error) {
-        console.warn("Failed to save assessment results:", error);
+        console.error("Error saving assessment results:", error);
+        toast.error("Erreur lors de la sauvegarde des résultats");
       }
     }
-
-    // Display results
-    await addBotMessage(
-      "Voici votre évaluation détaillée :",
-      undefined,
-      <div className="mt-4 space-y-6">
-        {/* Profil */}
-        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-          <h3 className="text-xl font-bold text-gray-100 mb-4">Votre Profil</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Niveau en mathématiques</span>
-              <span className="text-purple-400">{userProfile.mathLevel}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Niveau en programmation</span>
-              <span className="text-purple-400">
-                {userProfile.programmingLevel}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400">Domaine d'intérêt</span>
-              <span className="text-purple-400">{userProfile.domain}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Scores */}
-        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-          <h3 className="text-xl font-bold text-gray-100 mb-4">
-            Résultats par Domaine
-          </h3>
-          {recommendations.map((result, index) => (
-            <div key={index} className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-gray-300">{result.category}</span>
-                <span className="text-lg font-semibold text-purple-400">
-                  {Math.round(result.score)}%
-                </span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
-                <div
-                  className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${result.score}%` }}
-                />
-              </div>
-              <div className="space-y-2">
-                {result.recommendations.map((rec, i) => (
-                  <p key={i} className="text-sm text-gray-400">
-                    • {rec}
-                  </p>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Actions */}
-        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">
-          <h3 className="text-xl font-bold text-gray-100 mb-4">
-            Prochaines Étapes
-          </h3>
-          <div className="space-y-3">
-            {isAuthenticated ? (
-              <button
-                onClick={() => navigate("/goals")}
-                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-              >
-                Voir les parcours recommandés
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() =>
-                    navigate("/login", {
-                      state: {
-                        from: "/goals",
-                        assessmentResults: {
-                          profile: userProfile,
-                          scores: categoryScores,
-                          recommendations,
-                          responses,
-                        },
-                      },
-                    })
-                  }
-                  className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-                >
-                  Se connecter pour voir les parcours recommandés
-                </button>
-                <p className="text-sm text-gray-400 text-center">
-                  Connectez-vous pour sauvegarder vos résultats et accéder à
-                  votre parcours personnalisé
-                </p>
-              </>
-            )}
-            <button
-              onClick={() => navigate("/")}
-              className="w-full py-3 px-4 border border-gray-600 hover:bg-gray-800 text-gray-300 rounded-lg transition-colors"
-            >
-              Retour à l'accueil
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const handleSend = async (message: string) => {
@@ -469,6 +422,14 @@ const AssessmentPage = () => {
         navigate("/goals");
         break;
 
+      case "Se connecter":
+        navigate("/login");
+        break;
+
+      case "Revenir à l'accueil":
+        navigate("/");
+        break;
+
       case "Commencer l'évaluation détaillée":
         await handleQuizStart();
         break;
@@ -482,7 +443,7 @@ const AssessmentPage = () => {
             await handleProgrammingLevel(option);
             break;
           case "domain":
-            await handleDomainSelection(option);
+            await handleDomainSelection(option as DomainKey);
             break;
         }
         break;

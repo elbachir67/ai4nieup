@@ -4,59 +4,88 @@ const learnerProfileSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
+      unique: true,
     },
     learningStyle: {
       type: String,
       enum: ["visual", "auditory", "reading", "kinesthetic"],
       required: true,
-      default: "visual",
     },
     preferences: {
       mathLevel: {
         type: String,
         enum: ["beginner", "intermediate", "advanced", "expert"],
         required: true,
-        default: "beginner",
       },
       programmingLevel: {
         type: String,
         enum: ["beginner", "intermediate", "advanced", "expert"],
         required: true,
-        default: "beginner",
       },
       preferredDomain: {
         type: String,
         enum: ["ml", "dl", "computer_vision", "nlp", "mlops"],
         required: true,
-        default: "ml",
       },
     },
     assessments: [
       {
         category: {
           type: String,
-          enum: ["math", "programming", "ml", "dl", "computer_vision", "nlp"],
+          enum: [
+            "math",
+            "programming",
+            "ml",
+            "dl",
+            "computer_vision",
+            "nlp",
+            "mlops",
+          ],
+          required: true,
         },
         score: {
           type: Number,
           min: 0,
           max: 100,
+          required: true,
         },
         responses: [
           {
             questionId: String,
             selectedOption: String,
             timeSpent: Number,
+            category: String,
+            difficulty: String,
           },
         ],
-        recommendations: [String],
+        recommendations: [
+          {
+            category: {
+              type: String,
+              required: true,
+            },
+            score: {
+              type: Number,
+              required: true,
+            },
+            recommendations: {
+              type: [String],
+              required: true,
+            },
+          },
+        ],
         completedAt: {
           type: Date,
           default: Date.now,
         },
       },
     ],
+    goal: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Goal",
+    },
   },
   {
     timestamps: true,

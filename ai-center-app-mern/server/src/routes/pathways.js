@@ -1,230 +1,152 @@
 import express from "express";
-import { body } from "express-validator";
-import { Pathway } from "../models/Pathway.js";
-import { LearnerProfile } from "../models/LearnerProfile.js";
+import { UserPathway } from "../models/UserPathway.js";
 import { Goal } from "../models/LearningGoal.js";
 import { auth } from "../middleware/auth.js";
-import { validate } from "../middleware/validate.js";
 import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
-// Get learner's active pathway
-router.get("/active", auth, async (req, res) => {
+// Obtenir les parcours de l'utilisateur
+router.get("/my", auth, async (req, res) => {
   try {
-    const profile = await LearnerProfile.findOne({ userId: req.user._id });
-    if (!profile) {
-      return res.status(404).json({ error: "Learner profile not found" });
+    const pathways = await UserPathway.find({ userId: req.user._id })
+      .populate("goalId")
+      .sort("-startedAt");
+
+    res.json(pathways);
+  } catch (error) {
+    logger.error("Error fetching user pathways:", error);
+    res.status(500).json({ error: "Error fetching pathways" });
+  }
+});
+
+// Démarrer un nouveau parcours
+router.post("/start", auth, async (req, res) => {
+  try {
+    const { goalId } = req.body;
+
+    // Vérifier si un parcours existe déjà
+    const existingPathway = await UserPathway.findOne({
+      userId: req.user._id,
+      goalId,
+      status: { $in: ["in_progress", "paused"] },
+    });
+
+    if (existingPathway) {
+      return res.status(400).json({
+        error: "Un parcours pour cet objectif existe déjà",
+      });
     }
 
-    const pathway = await Pathway.findOne({
-      learnerId: profile._id,
-      status: "active",
-    })
-      .populate("goalId")
-      .populate("conceptSequence.concept");
+    // Récupérer l'objectif
+    const goal = await Goal.findById(goalId);
+    if (!goal) {
+      return res.status(404).json({ error: "Objectif non trouvé" });
+    }
+
+    // Créer le parcours
+    const pathway = new UserPathway({
+      userId: req.user._id,
+      goalId,
+      moduleProgress: goal.modules.map((_, index) => ({
+        moduleIndex: index,
+        completed: false,
+        resources: [],
+        quiz: { completed: false },
+      })),
+    });
+
+    await pathway.save();
+    await pathway.generateRecommendations();
+
+    res.status(201).json(pathway);
+  } catch (error) {
+    logger.error("Error starting pathway:", error);
+    res.status(500).json({ error: "Error starting pathway" });
+  }
+});
+
+// Mettre à jour la progression d'un module
+router.put("/:pathwayId/modules/:moduleIndex", auth, async (req, res) => {
+  try {
+    const { pathwayId, moduleIndex } = req.params;
+    const { resourceId, completed, quizScore } = req.body;
+
+    const pathway = await UserPathway.findOne({
+      _id: pathwayId,
+      userId: req.user._id,
+    });
 
     if (!pathway) {
-      return res.status(404).json({ error: "No active pathway found" });
+      return res.status(404).json({ error: "Parcours non trouvé" });
     }
+
+    const module = pathway.moduleProgress[moduleIndex];
+    if (!module) {
+      return res.status(404).json({ error: "Module non trouvé" });
+    }
+
+    // Mettre à jour la ressource
+    if (resourceId) {
+      const resourceIndex = module.resources.findIndex(
+        r => r.resourceId === resourceId
+      );
+
+      if (resourceIndex > -1) {
+        module.resources[resourceIndex].completed = completed;
+        module.resources[resourceIndex].completedAt = new Date();
+      } else {
+        module.resources.push({
+          resourceId,
+          completed,
+          completedAt: new Date(),
+        });
+      }
+    }
+
+    // Mettre à jour le quiz
+    if (quizScore !== undefined) {
+      module.quiz = {
+        completed: true,
+        score: quizScore,
+        completedAt: new Date(),
+      };
+    }
+
+    // Vérifier si le module est complété
+    const allResourcesCompleted = module.resources.every(r => r.completed);
+    const quizCompleted = module.quiz.completed;
+    module.completed = allResourcesCompleted && quizCompleted;
+
+    await pathway.save();
+    await pathway.updateProgress();
+    await pathway.generateRecommendations();
 
     res.json(pathway);
   } catch (error) {
-    logger.error("Error fetching active pathway:", error);
-    res.status(500).json({ error: error.message });
+    logger.error("Error updating module progress:", error);
+    res.status(500).json({ error: "Error updating progress" });
   }
 });
 
-// Create new pathway
-router.post(
-  "/",
-  auth,
-  [body("goalId").isMongoId(), body("estimatedDuration").isInt({ min: 1 })],
-  validate,
-  async (req, res) => {
-    try {
-      const { goalId, estimatedDuration } = req.body;
-
-      // Get learner profile
-      const profile = await LearnerProfile.findOne({ userId: req.user._id });
-      if (!profile) {
-        return res.status(404).json({ error: "Learner profile not found" });
-      }
-
-      // Get learning goal
-      const goal = await LearningGoal.findById(goalId).populate(
-        "requiredConcepts"
-      );
-      if (!goal) {
-        return res.status(404).json({ error: "Learning goal not found" });
-      }
-
-      // Create concept sequence based on prerequisites
-      const conceptSequence = goal.requiredConcepts.map((concept, index) => ({
-        concept: concept._id,
-        order: index + 1,
-        status: "pending",
-      }));
-
-      // Create new pathway
-      const pathway = new Pathway({
-        learnerId: profile._id,
-        goalId,
-        estimatedDuration,
-        conceptSequence,
-        status: "active",
-      });
-
-      await pathway.save();
-
-      // Update learner profile
-      profile.goal = goalId;
-      await profile.save();
-
-      logger.info(`New pathway created for learner ${profile._id}`);
-      res.status(201).json(pathway);
-    } catch (error) {
-      logger.error("Error creating pathway:", error);
-      res.status(400).json({ error: error.message });
-    }
-  }
-);
-
-// Update concept status in pathway
-router.put(
-  "/concept/:conceptId",
-  auth,
-  [
-    body("status").isIn(["pending", "in_progress", "completed"]),
-    body("pathwayId").isMongoId(),
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      const { status, pathwayId } = req.body;
-      const conceptId = req.params.conceptId;
-
-      const profile = await LearnerProfile.findOne({ userId: req.user._id });
-      if (!profile) {
-        return res.status(404).json({ error: "Learner profile not found" });
-      }
-
-      const pathway = await Pathway.findOne({
-        _id: pathwayId,
-        learnerId: profile._id,
-      });
-
-      if (!pathway) {
-        return res.status(404).json({ error: "Pathway not found" });
-      }
-
-      // Update concept status
-      const conceptIndex = pathway.conceptSequence.findIndex(
-        c => c.concept.toString() === conceptId
-      );
-
-      if (conceptIndex === -1) {
-        return res.status(404).json({ error: "Concept not found in pathway" });
-      }
-
-      pathway.conceptSequence[conceptIndex].status = status;
-
-      if (status === "completed") {
-        pathway.conceptSequence[conceptIndex].completedAt = new Date();
-        pathway.analytics.completedConcepts += 1;
-      } else if (
-        status === "in_progress" &&
-        !pathway.conceptSequence[conceptIndex].startedAt
-      ) {
-        pathway.conceptSequence[conceptIndex].startedAt = new Date();
-      }
-
-      // Update pathway progress
-      const totalConcepts = pathway.conceptSequence.length;
-      const completedConcepts = pathway.conceptSequence.filter(
-        c => c.status === "completed"
-      ).length;
-      pathway.progress = (completedConcepts / totalConcepts) * 100;
-
-      // Check if pathway is completed
-      if (pathway.progress === 100) {
-        pathway.status = "completed";
-      }
-
-      await pathway.save();
-
-      logger.info(
-        `Updated concept ${conceptId} status to ${status} in pathway ${pathwayId}`
-      );
-      res.json(pathway);
-    } catch (error) {
-      logger.error("Error updating concept status:", error);
-      res.status(400).json({ error: error.message });
-    }
-  }
-);
-
-// Get pathway analytics
-router.get("/analytics/:pathwayId", auth, async (req, res) => {
+// Obtenir les recommandations
+router.get("/:pathwayId/recommendations", auth, async (req, res) => {
   try {
-    const profile = await LearnerProfile.findOne({ userId: req.user._id });
-    if (!profile) {
-      return res.status(404).json({ error: "Learner profile not found" });
-    }
-
-    const pathway = await Pathway.findOne({
+    const pathway = await UserPathway.findOne({
       _id: req.params.pathwayId,
-      learnerId: profile._id,
-    })
-      .populate("goalId")
-      .populate("conceptSequence.concept");
+      userId: req.user._id,
+    });
 
     if (!pathway) {
-      return res.status(404).json({ error: "Pathway not found" });
+      return res.status(404).json({ error: "Parcours non trouvé" });
     }
 
-    const analytics = {
-      ...pathway.analytics.toObject(),
-      estimatedCompletion: calculateEstimatedCompletion(pathway),
-      conceptBreakdown: analyzeConceptProgress(pathway.conceptSequence),
-      learningRate: calculateLearningRate(pathway),
-    };
-
-    res.json(analytics);
+    await pathway.generateRecommendations();
+    res.json(pathway.adaptiveRecommendations);
   } catch (error) {
-    logger.error("Error fetching pathway analytics:", error);
-    res.status(500).json({ error: error.message });
+    logger.error("Error getting recommendations:", error);
+    res.status(500).json({ error: "Error getting recommendations" });
   }
 });
-
-// Helper functions for analytics
-function calculateEstimatedCompletion(pathway) {
-  const { startDate, completedConcepts } = pathway.analytics;
-  const totalConcepts = pathway.conceptSequence.length;
-
-  if (completedConcepts === 0) return null;
-
-  const timeElapsed = Date.now() - startDate.getTime();
-  const conceptsRemaining = totalConcepts - completedConcepts;
-  const timePerConcept = timeElapsed / completedConcepts;
-
-  return new Date(Date.now() + conceptsRemaining * timePerConcept);
-}
-
-function analyzeConceptProgress(conceptSequence) {
-  return {
-    pending: conceptSequence.filter(c => c.status === "pending").length,
-    inProgress: conceptSequence.filter(c => c.status === "in_progress").length,
-    completed: conceptSequence.filter(c => c.status === "completed").length,
-  };
-}
-
-function calculateLearningRate(pathway) {
-  const { completedConcepts } = pathway.analytics;
-  const timeElapsed = Date.now() - pathway.analytics.startDate.getTime();
-  const daysElapsed = timeElapsed / (1000 * 60 * 60 * 24);
-
-  return completedConcepts / daysElapsed;
-}
 
 export const pathwayRoutes = router;

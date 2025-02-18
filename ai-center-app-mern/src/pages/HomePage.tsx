@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Brain,
   Target,
@@ -64,6 +65,8 @@ const ActionCard = ({
 );
 
 const HomePage = () => {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-[#0A0A0F] relative overflow-hidden">
       {/* Background Effects */}
@@ -91,13 +94,23 @@ const HomePage = () => {
             color="bg-purple-500/20"
             to="/assessment"
           />
-          <ActionCard
-            icon={Target}
-            title="Objectifs d'Apprentissage"
-            description="Explorez nos parcours structurés et choisissez celui qui correspond à vos ambitions professionnelles"
-            color="bg-blue-500/20"
-            to="/goals"
-          />
+          {isAuthenticated ? (
+            <ActionCard
+              icon={Target}
+              title="Objectifs d'Apprentissage"
+              description="Explorez nos parcours structurés et choisissez celui qui correspond à vos ambitions professionnelles"
+              color="bg-blue-500/20"
+              to="/goals"
+            />
+          ) : (
+            <ActionCard
+              icon={Target}
+              title="Commencer votre Parcours"
+              description="Passez l'évaluation pour accéder à des objectifs d'apprentissage personnalisés"
+              color="bg-blue-500/20"
+              to="/assessment"
+            />
+          )}
         </div>
 
         {/* Domains Grid */}
@@ -155,26 +168,17 @@ const HomePage = () => {
             Prêt à Commencer ?
           </h2>
           <p className="text-gray-400 mb-8 max-w-2xl mx-auto">
-            Évaluez vos compétences, définissez vos objectifs et commencez votre
-            parcours personnalisé dès aujourd'hui
+            Évaluez vos compétences et commencez votre parcours personnalisé dès
+            aujourd'hui
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/assessment"
-              className="w-full sm:w-auto px-8 py-3 text-lg font-medium text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 flex items-center justify-center"
-            >
-              Commencer l'évaluation
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-            <Link
-              to="/goals"
-              className="w-full sm:w-auto px-8 py-3 text-lg font-medium border border-blue-500 text-blue-400 rounded-xl hover:bg-blue-500/10 transition-all duration-300 flex items-center justify-center"
-            >
-              Explorer les objectifs
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-          </div>
+          <Link
+            to="/assessment"
+            className="inline-flex items-center px-8 py-3 text-lg font-medium text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300"
+          >
+            Commencer l'évaluation
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Link>
         </div>
       </div>
     </div>

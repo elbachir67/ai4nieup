@@ -1,21 +1,17 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
+import { Lock } from "lucide-react";
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  // Get assessment results from location state if they exist
-  const assessmentResults = location.state?.assessmentResults;
-  const from = location.state?.from || "/";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,27 +38,12 @@ function RegisterPage() {
 
       const data = await response.json();
 
-      // Sign in the user after successful registration
+      // Connecter l'utilisateur
       await signIn(email, password);
 
-      // If we have assessment results, save them
-      if (assessmentResults) {
-        try {
-          await fetch(`${api.assessments}/submit`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${data.token}`,
-            },
-            body: JSON.stringify(assessmentResults),
-          });
-        } catch (error) {
-          console.warn("Failed to save assessment results after registration");
-        }
-      }
-
       toast.success("Inscription réussie");
-      navigate(from);
+      // Rediriger vers l'évaluation après l'inscription
+      navigate("/assessment");
     } catch (error) {
       toast.error("Erreur lors de l'inscription");
     } finally {
@@ -73,15 +54,22 @@ function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0F] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 glass-card p-8 rounded-xl">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
-            {assessmentResults ? "Créez votre compte" : "Inscription"}
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 bg-purple-600/20 rounded-xl flex items-center justify-center">
+            <Lock className="h-6 w-6 text-purple-400" />
+          </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-100">
+            Créer un compte
           </h2>
-          {assessmentResults && (
-            <p className="mt-2 text-center text-sm text-gray-400">
-              Créez un compte pour accéder à votre parcours personnalisé
-            </p>
-          )}
+          <p className="mt-2 text-sm text-gray-400">
+            Ou{" "}
+            <button
+              onClick={() => navigate("/login")}
+              className="font-medium text-purple-400 hover:text-purple-300"
+            >
+              connectez-vous à votre compte
+            </button>
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -141,23 +129,6 @@ function RegisterPage() {
             >
               {loading ? "Inscription..." : "S'inscrire"}
             </button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-400">
-              Déjà un compte ?{" "}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/login", {
-                    state: { assessmentResults, from },
-                  })
-                }
-                className="font-medium text-purple-400 hover:text-purple-300"
-              >
-                Se connecter
-              </button>
-            </p>
           </div>
         </form>
       </div>

@@ -1,6 +1,8 @@
 import express from "express";
 import { Assessment } from "../models/Assessment.js";
 import { Goal } from "../models/LearningGoal.js";
+import { LearnerProfile } from "../models/LearnerProfile.js";
+import { auth } from "../middleware/auth.js";
 import { logger } from "../utils/logger.js";
 
 const router = express.Router();
@@ -8,23 +10,20 @@ const router = express.Router();
 // Get assessment questions by category
 router.get("/questions", async (req, res) => {
   try {
-    const { category, difficulty } = req.query;
+    const { domain } = req.query;
     let query = {};
 
-    if (category) {
-      query.category = category.toLowerCase();
-    }
-    if (difficulty) {
-      query.difficulty = difficulty;
+    if (domain) {
+      query.category = domain.toLowerCase();
     }
 
     const assessments = await Assessment.find(query)
       .populate("recommendedGoals")
-      .select("-createdAt -updatedAt -__v");
+      .select("-createdAt -updatedAt -__v")
+      .limit(4);
 
-    // Format questions for the frontend
     const questions = assessments.flatMap(assessment =>
-      assessment.questions.map(q => ({
+      assessment.questions.slice(0, 1).map(q => ({
         id: q._id.toString(),
         text: q.text,
         category: assessment.category,
@@ -46,62 +45,126 @@ router.get("/questions", async (req, res) => {
   }
 });
 
-// Submit assessment results and get recommendations
-router.post("/submit", async (req, res) => {
+// Submit assessment results
+router.post("/submit", auth, async (req, res) => {
   try {
-    const { responses, userProfile } = req.body;
+    const { category, score, responses, recommendations } = req.body;
+    const userId = req.user.id;
 
-    // Calculate scores by category
-    const categoryScores = {};
-    responses.forEach(response => {
-      const category = response.category;
-      if (!categoryScores[category]) {
-        categoryScores[category] = {
-          correct: 0,
-          total: 0,
-        };
-      }
-      categoryScores[category].total++;
-      if (response.isCorrect) {
-        categoryScores[category].correct++;
-      }
-    });
-
-    // Calculate percentages and get recommended goals
-    const recommendations = [];
-    for (const [category, scores] of Object.entries(categoryScores)) {
-      const percentage = (scores.correct / scores.total) * 100;
-
-      // Find appropriate goals based on score and user profile
-      const difficulty =
-        percentage >= 80
-          ? "advanced"
-          : percentage >= 50
-          ? "intermediate"
-          : "beginner";
-
-      const recommendedGoals = await Goal.find({
-        category,
-        difficulty,
-        // Add additional filters based on user profile if needed
-      }).limit(3);
-
-      recommendations.push({
-        category,
-        score: percentage,
-        goals: recommendedGoals,
+    // Validate category
+    const validCategories = [
+      "math",
+      "programming",
+      "ml",
+      "dl",
+      "computer_vision",
+      "nlp",
+      "mlops",
+    ];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        error: `Invalid category. Must be one of: ${validCategories.join(
+          ", "
+        )}`,
       });
     }
 
+    // Format recommendations
+    const formattedRecommendations = recommendations.map(rec => ({
+      category: rec.category,
+      score: rec.score,
+      recommendations: rec.recommendations,
+    }));
+
+    // Find and update or create learner profile
+    const learnerProfile = await LearnerProfile.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          userId,
+          learningStyle: "visual",
+          preferences: {
+            mathLevel: "beginner",
+            programmingLevel: "beginner",
+            preferredDomain: category,
+          },
+        },
+        $push: {
+          assessments: {
+            category,
+            score,
+            responses,
+            recommendations: formattedRecommendations,
+            completedAt: new Date(),
+          },
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      }
+    );
+
+    // Update preferences based on score
+    const recommendedLevel =
+      score >= 80 ? "advanced" : score >= 50 ? "intermediate" : "beginner";
+
+    // Update appropriate level
+    let updateQuery = {};
+    switch (category) {
+      case "math":
+        updateQuery = { "preferences.mathLevel": recommendedLevel };
+        break;
+      case "programming":
+        updateQuery = { "preferences.programmingLevel": recommendedLevel };
+        break;
+      default:
+        updateQuery = { "preferences.preferredDomain": category };
+    }
+
+    // Update preferences in a separate operation
+    await LearnerProfile.findByIdAndUpdate(
+      learnerProfile._id,
+      { $set: updateQuery },
+      { runValidators: true }
+    );
+
+    // Fetch updated profile
+    const updatedProfile = await LearnerProfile.findById(learnerProfile._id);
+
     res.json({
       success: true,
-      recommendations,
+      profile: updatedProfile,
     });
   } catch (error) {
     logger.error("Error submitting assessment:", error);
-    res.status(500).json({ error: "Error submitting assessment" });
+    if (error.code === 11000) {
+      logger.error("Duplicate key error:", error);
+      res.status(400).json({ error: "Profile already exists for this user" });
+    } else {
+      res.status(500).json({ error: "Error submitting assessment" });
+    }
   }
 });
 
-// Export the router directly
+// Get assessment history
+router.get("/history", auth, async (req, res) => {
+  try {
+    const profile = await LearnerProfile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.json([]);
+    }
+
+    const assessments = profile.assessments.sort(
+      (a, b) => b.completedAt - a.completedAt
+    );
+
+    res.json(assessments);
+  } catch (error) {
+    logger.error("Error fetching assessment history:", error);
+    res.status(500).json({ error: "Error fetching assessment history" });
+  }
+});
+
 export default router;

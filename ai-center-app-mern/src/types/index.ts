@@ -1,17 +1,26 @@
 import { DivideIcon as LucideIcon } from "lucide-react";
 
+export type GoalCategory =
+  | "ml"
+  | "dl"
+  | "data_science"
+  | "mlops"
+  | "computer_vision"
+  | "nlp";
+export type GoalDifficulty = "beginner" | "intermediate" | "advanced";
+
 export interface Goal {
   id: string;
   title: string;
   description: string;
-  category: "ml" | "dl" | "data_science" | "mlops" | "computer_vision" | "nlp";
+  category: GoalCategory;
   estimatedDuration: number;
-  level: "beginner" | "intermediate" | "advanced";
+  level: GoalDifficulty;
   prerequisites: {
     category: string;
     skills: {
       name: string;
-      level: string;
+      level: GoalDifficulty;
     }[];
   }[];
   modules: {
@@ -20,7 +29,7 @@ export interface Goal {
     duration: number;
     skills: {
       name: string;
-      level: string;
+      level: GoalDifficulty;
     }[];
     resources: {
       title: string;
@@ -41,6 +50,14 @@ export interface Goal {
     name: string;
     provider: string;
     url: string;
+  };
+  isRecommended?: boolean;
+  matchScore?: number;
+  userProgress?: {
+    started: boolean;
+    completed: boolean;
+    progress: number;
+    lastAccessedAt?: string;
   };
 }
 
@@ -70,4 +87,20 @@ export interface AssessmentResult {
   level: "basic" | "intermediate" | "advanced";
   score: number;
   recommendations: string[];
+}
+
+export interface UserProfile {
+  id: string;
+  userId: string;
+  learningStyle: "visual" | "auditory" | "reading" | "kinesthetic";
+  preferences: {
+    mathLevel: GoalDifficulty;
+    programmingLevel: GoalDifficulty;
+    preferredDomain: GoalCategory;
+  };
+  assessments: {
+    category: string;
+    score: number;
+    completedAt: string;
+  }[];
 }

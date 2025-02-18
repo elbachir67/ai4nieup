@@ -1,163 +1,132 @@
 import express from "express";
-import { body } from "express-validator";
 import { Goal } from "../models/LearningGoal.js";
-import { auth, adminAuth } from "../middleware/auth.js";
-import { validate } from "../middleware/validate.js";
+import { LearnerProfile } from "../models/LearnerProfile.js";
 import { logger } from "../utils/logger.js";
-import mongoose from "mongoose";
 
 const router = express.Router();
 
-// Get all goals with filters
+// Get all goals with filters and recommendations
 router.get("/", async (req, res) => {
   try {
-    const { category, difficulty, search } = req.query;
+    const {
+      category,
+      difficulty,
+      userId,
+      mathLevel,
+      programmingLevel,
+      preferredDomain,
+    } = req.query;
+
     let query = {};
 
+    // Filtres de base
     if (category && category !== "all") {
       query.category = category;
     }
     if (difficulty && difficulty !== "all") {
-      query.difficulty = difficulty;
-    }
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
+      query.level = difficulty;
     }
 
+    // Récupérer le profil et les évaluations si userId est fourni
+    let profile = null;
+    let latestAssessment = null;
+
+    if (userId) {
+      profile = await LearnerProfile.findOne({ userId });
+      if (profile && profile.assessments.length > 0) {
+        latestAssessment = profile.assessments.sort(
+          (a, b) => b.completedAt - a.completedAt
+        )[0];
+      }
+    }
+
+    // Appliquer les filtres basés sur le profil
+    if (profile) {
+      if (!query.level) {
+        query.level = latestAssessment?.recommendedLevel || "beginner";
+      }
+      if (!query.category && profile.preferences?.preferredDomain) {
+        query.category = profile.preferences.preferredDomain;
+      }
+    }
+
+    // Récupérer les objectifs
     const goals = await Goal.find(query)
       .populate("requiredConcepts")
-      .sort("category");
+      .sort("category level");
 
-    res.json(goals);
+    // Ajouter des métadonnées pour chaque objectif
+    const goalsWithMetadata = goals.map(goal => {
+      const isRecommended =
+        profile &&
+        latestAssessment &&
+        goal.level === latestAssessment.recommendedLevel &&
+        (!goal.category ||
+          goal.category === profile.preferences?.preferredDomain);
+
+      return {
+        ...goal.toObject(),
+        isRecommended,
+        matchScore: calculateMatchScore(goal, profile, latestAssessment),
+      };
+    });
+
+    // Trier par score de correspondance
+    goalsWithMetadata.sort((a, b) => b.matchScore - a.matchScore);
+
+    res.json(goalsWithMetadata);
   } catch (error) {
     logger.error("Error fetching goals:", error);
     res.status(500).json({ error: "Error fetching goals" });
   }
 });
 
-// Get a specific goal
-router.get("/:id", async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid goal ID format" });
-    }
+// Fonction utilitaire pour calculer le score de correspondance
+function calculateMatchScore(goal, profile, assessment) {
+  if (!profile || !assessment) return 0;
 
-    const goal = await Goal.findById(req.params.id).populate(
-      "requiredConcepts"
-    );
+  let score = 0;
 
-    if (!goal) {
-      return res.status(404).json({ error: "Goal not found" });
-    }
-
-    res.json(goal);
-  } catch (error) {
-    logger.error("Error fetching goal:", error);
-    res.status(500).json({ error: "Error fetching goal" });
+  // Correspondance de niveau
+  if (goal.level === assessment.recommendedLevel) {
+    score += 40;
   }
-});
 
-// Create a new goal (admin only)
-router.post(
-  "/",
-  adminAuth,
-  [
-    body("title").notEmpty().withMessage("Title is required"),
-    body("description").notEmpty().withMessage("Description is required"),
-    body("category")
-      .isIn(["ml", "dl", "data_science", "mlops", "computer_vision", "nlp"])
-      .withMessage("Invalid category"),
-    body("estimatedDuration")
-      .isInt({ min: 1 })
-      .withMessage("Duration must be a positive number"),
-    body("difficulty")
-      .isIn(["beginner", "intermediate", "advanced"])
-      .withMessage("Invalid difficulty level"),
-    body("careerOpportunities")
-      .isArray()
-      .withMessage("Career opportunities must be an array"),
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      const goal = new Goal(req.body);
-      await goal.save();
-
-      logger.info(`New goal created: ${goal.title}`);
-      res.status(201).json(goal);
-    } catch (error) {
-      logger.error("Error creating goal:", error);
-      res.status(400).json({ error: error.message });
-    }
+  // Correspondance de domaine
+  if (goal.category === profile.preferences?.preferredDomain) {
+    score += 30;
   }
-);
 
-// Update a goal (admin only)
-router.put(
-  "/:id",
-  adminAuth,
-  [
-    body("title").notEmpty().withMessage("Title is required"),
-    body("description").notEmpty().withMessage("Description is required"),
-    body("category")
-      .isIn(["ml", "dl", "data_science", "mlops", "computer_vision", "nlp"])
-      .withMessage("Invalid category"),
-    body("estimatedDuration")
-      .isInt({ min: 1 })
-      .withMessage("Duration must be a positive number"),
-    body("difficulty")
-      .isIn(["beginner", "intermediate", "advanced"])
-      .withMessage("Invalid difficulty level"),
-    body("careerOpportunities")
-      .isArray()
-      .withMessage("Career opportunities must be an array"),
-  ],
-  validate,
-  async (req, res) => {
-    try {
-      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-        return res.status(400).json({ error: "Invalid goal ID format" });
-      }
-
-      const goal = await Goal.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true,
-      }).populate("requiredConcepts");
-
-      if (!goal) {
-        return res.status(404).json({ error: "Goal not found" });
-      }
-
-      logger.info(`Goal updated: ${goal.title}`);
-      res.json(goal);
-    } catch (error) {
-      logger.error("Error updating goal:", error);
-      res.status(400).json({ error: error.message });
+  // Correspondance des prérequis
+  const prereqMatch = goal.prerequisites?.every(prereq => {
+    if (prereq.category === "math" && profile.preferences?.mathLevel) {
+      return isLevelSufficient(profile.preferences.mathLevel, prereq.level);
     }
+    if (
+      prereq.category === "programming" &&
+      profile.preferences?.programmingLevel
+    ) {
+      return isLevelSufficient(
+        profile.preferences.programmingLevel,
+        prereq.level
+      );
+    }
+    return true;
+  });
+
+  if (prereqMatch) {
+    score += 30;
   }
-);
 
-// Delete a goal (admin only)
-router.delete("/:id", adminAuth, async (req, res) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ error: "Invalid goal ID format" });
-    }
+  return score;
+}
 
-    const goal = await Goal.findByIdAndDelete(req.params.id);
-    if (!goal) {
-      return res.status(404).json({ error: "Goal not found" });
-    }
-
-    logger.info(`Goal deleted: ${goal.title}`);
-    res.json({ message: "Goal deleted successfully" });
-  } catch (error) {
-    logger.error("Error deleting goal:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
+// Fonction utilitaire pour comparer les niveaux
+function isLevelSufficient(userLevel, requiredLevel) {
+  const levels = ["beginner", "intermediate", "advanced", "expert"];
+  const userLevelIndex = levels.indexOf(userLevel);
+  const requiredLevelIndex = levels.indexOf(requiredLevel);
+  return userLevelIndex >= requiredLevelIndex;
+}
 
 export const goalRoutes = router;

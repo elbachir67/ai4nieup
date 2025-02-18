@@ -1,20 +1,25 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
+import { Lock } from "lucide-react";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { signIn } = useAuth();
+  const { signIn, isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Get assessment results from location state if they exist
-  const assessmentResults = location.state?.assessmentResults;
-  const from = location.state?.from || "/";
+  useEffect(() => {
+    // Si l'utilisateur est déjà connecté, rediriger
+    if (isAuthenticated) {
+      const redirectUrl = localStorage.getItem("redirectAfterLogin") || "/";
+      localStorage.removeItem("redirectAfterLogin"); // Nettoyer après utilisation
+      navigate(redirectUrl);
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,24 +42,7 @@ function LoginPage() {
       if (data.success) {
         await signIn(email, password);
 
-        // If we have assessment results, save them
-        if (assessmentResults) {
-          try {
-            await fetch(`${api.assessments}/submit`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${data.token}`,
-              },
-              body: JSON.stringify(assessmentResults),
-            });
-          } catch (error) {
-            console.warn("Failed to save assessment results after login");
-          }
-        }
-
-        toast.success("Connexion réussie");
-        navigate(from);
+        // La redirection sera gérée par le useEffect
       } else {
         throw new Error(data.message || "Erreur de connexion");
       }
@@ -68,15 +56,22 @@ function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0F] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 glass-card p-8 rounded-xl">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-100">
-            {assessmentResults ? "Sauvegardez vos résultats" : "Connexion"}
+        <div className="text-center">
+          <div className="mx-auto h-12 w-12 bg-purple-600/20 rounded-xl flex items-center justify-center">
+            <Lock className="h-6 w-6 text-purple-400" />
+          </div>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-100">
+            Connexion
           </h2>
-          {assessmentResults && (
-            <p className="mt-2 text-center text-sm text-gray-400">
-              Connectez-vous pour accéder à votre parcours personnalisé
-            </p>
-          )}
+          <p className="mt-2 text-sm text-gray-400">
+            Ou{" "}
+            <button
+              onClick={() => navigate("/register")}
+              className="font-medium text-purple-400 hover:text-purple-300"
+            >
+              créez un compte
+            </button>
+          </p>
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -121,23 +116,6 @@ function LoginPage() {
             >
               {loading ? "Connexion..." : "Se connecter"}
             </button>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-400">
-              Pas encore de compte ?{" "}
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/register", {
-                    state: { assessmentResults, from },
-                  })
-                }
-                className="font-medium text-purple-400 hover:text-purple-300"
-              >
-                S'inscrire
-              </button>
-            </p>
           </div>
         </form>
       </div>

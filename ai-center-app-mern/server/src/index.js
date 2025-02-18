@@ -12,9 +12,9 @@ import connectDB from "./config/database.js";
 import { authRoutes } from "./routes/auth.js";
 import { goalRoutes } from "./routes/goals.js";
 import { conceptRoutes } from "./routes/concepts.js";
-import assessmentRoutes from "./routes/assessments.js"; // Updated import
+import assessmentRoutes from "./routes/assessments.js";
 import { userRoutes } from "./routes/users.js";
-import { learnerProfileRoutes } from "./routes/learnerProfiles.js";
+import learnerProfileRoutes from "./routes/learnerProfiles.js";
 import { pathwayRoutes } from "./routes/pathways.js";
 
 // Get the directory name of the current module
@@ -59,7 +59,7 @@ app.use(morgan("dev"));
 app.use("/api/auth", authRoutes);
 app.use("/api/goals", goalRoutes);
 app.use("/api/concepts", conceptRoutes);
-app.use("/api/assessments", assessmentRoutes); // Updated route
+app.use("/api/assessments", assessmentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/profiles", learnerProfileRoutes);
 app.use("/api/pathways", pathwayRoutes);

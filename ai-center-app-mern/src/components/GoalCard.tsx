@@ -1,14 +1,19 @@
 import React from "react";
 import { Goal } from "../types";
-import { BookOpen, Clock, BarChart } from "lucide-react";
+import { BookOpen, Clock, BarChart, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface GoalCardProps {
   goal: Goal;
   className?: string;
+  isRecommended?: boolean;
 }
 
-const GoalCard: React.FC<GoalCardProps> = ({ goal, className = "" }) => {
+const GoalCard: React.FC<GoalCardProps> = ({
+  goal,
+  className = "",
+  isRecommended = false,
+}) => {
   const navigate = useNavigate();
 
   const getDifficultyColor = (difficulty: string) => {
@@ -49,9 +54,16 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, className = "" }) => {
 
   return (
     <div
-      className={`glass-card rounded-xl p-6 hover:scale-105 transition-all duration-300 cursor-pointer ${className}`}
+      className={`glass-card rounded-xl p-6 hover:scale-105 transition-all duration-300 cursor-pointer relative ${className}`}
       onClick={handleClick}
     >
+      {isRecommended && (
+        <div className="absolute -top-2 -right-2 bg-yellow-500/90 text-white px-3 py-1 rounded-full text-sm font-medium flex items-center shadow-lg">
+          <Sparkles className="w-4 h-4 mr-1" />
+          Recommandé
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-100 pr-20">{goal.title}</h3>
         <span
