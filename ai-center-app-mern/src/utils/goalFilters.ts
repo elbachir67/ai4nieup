@@ -76,8 +76,8 @@ export function filterGoalsByUserProfile(
 export function filterGoalsBySearch(
   goals: Goal[],
   searchQuery: string,
-  category?: GoalCategory,
-  difficulty?: GoalDifficulty
+  category?: GoalCategory | "all",
+  difficulty?: GoalDifficulty | "all"
 ): Goal[] {
   const searchLower = searchQuery.toLowerCase();
 
