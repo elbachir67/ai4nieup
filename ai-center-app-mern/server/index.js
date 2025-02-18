@@ -19,7 +19,7 @@ import { stepRoutes } from "./routes/steps.js";
 import { resourceRoutes } from "./routes/resources.js";
 
 const app = express();
-
+/*
 // Middleware
 app.use(
   cors({
@@ -29,6 +29,23 @@ app.use(
       /\.netlify\.app$/,
       /\.netlify\.live$/,
     ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+*/
+const cors = require("cors");
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+app.use(
+  cors({
+    origin: "https://ucad-ai-1.surge.sh",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

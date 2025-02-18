@@ -51,7 +51,7 @@ const getLevelStyle = (level: string) => {
 };
 
 function GoalDetailPage() {
-  const { goalId } = useParams();
+  const { goalId } = useParams<{ goalId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [goal, setGoal] = useState<Goal | null>(null);
@@ -60,37 +60,50 @@ function GoalDetailPage() {
 
   useEffect(() => {
     const fetchGoal = async () => {
+      console.log("Current goalId:", goalId); // Debug log
+      console.log("Current URL:", window.location.href); // Debug log
+      console.log("User auth status:", !!user?.token); // Debug log
+
       if (!goalId) {
-        setError("ID de l'objectif manquant");
+        console.error("No goalId provided in URL parameters");
+        setError("ID de l'objectif invalide");
         setLoading(false);
+        toast.error("ID de l'objectif invalide");
+        return;
+      }
+
+      if (!user?.token) {
+        console.error("No authentication token found");
+        toast.error("Vous devez être connecté");
+        navigate("/login");
         return;
       }
 
       try {
+        console.log("Fetching goal from:", `${api.goals}/${goalId}`); // Debug log
         const response = await fetch(`${api.goals}/${goalId}`, {
           headers: {
-            Authorization: `Bearer ${user?.token}`,
+            Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
         });
 
+        console.log("API Response status:", response.status); // Debug log
+
         if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("Objectif non trouvé");
-          }
-          throw new Error("Erreur lors du chargement de l'objectif");
+          throw new Error(
+            response.status === 404
+              ? "Objectif non trouvé"
+              : "Erreur lors du chargement de l'objectif"
+          );
         }
 
         const data = await response.json();
-
-        if (!data) {
-          throw new Error("Données de l'objectif invalides");
-        }
-
+        console.log("Received goal data:", data); // Debug log
         setGoal(data);
         setError(null);
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Error fetching goal:", error);
         setError(
           error instanceof Error
             ? error.message
