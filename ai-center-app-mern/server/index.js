@@ -14,9 +14,6 @@ import { assessmentRoutes } from "./routes/assessments.js";
 import { userRoutes } from "./routes/users.js";
 import { learnerProfileRoutes } from "./routes/learnerProfiles.js";
 import { pathwayRoutes } from "./routes/pathways.js";
-import { sectionRoutes } from "./routes/sections.js";
-import { stepRoutes } from "./routes/steps.js";
-import { resourceRoutes } from "./routes/resources.js";
 
 const app = express();
 /*
@@ -62,9 +59,6 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/profiles", learnerProfileRoutes);
 app.use("/api/pathways", pathwayRoutes);
-app.use("/api/sections", sectionRoutes);
-app.use("/api/steps", stepRoutes);
-app.use("/api/resources", resourceRoutes);
 
 // Error handling
 app.use(errorHandler);

@@ -8,13 +8,10 @@ export const api = {
     profile: `${API_URL}/api/auth/profile`,
   },
 
-  // Base endpoints
-  sections: `${API_URL}/api/sections`,
-  steps: `${API_URL}/api/steps`,
-  resources: `${API_URL}/api/resources`,
   goals: `${API_URL}/api/goals`,
   concepts: `${API_URL}/api/concepts`,
   assessments: `${API_URL}/api/assessments`,
+  goalDetails: (id: string) => `${API_URL}/goals/${id}`,
   profiles: `${API_URL}/api/profiles`,
   pathways: `${API_URL}/api/pathways`,
 

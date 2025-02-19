@@ -65,6 +65,7 @@ function GoalDetailPage() {
       console.log("User auth status:", !!user?.token); // Debug log
 
       if (!goalId) {
+        console.log("Current goalId:", goalId); // Debug log
         console.error("No goalId provided in URL parameters");
         setError("ID de l'objectif invalide");
         setLoading(false);
