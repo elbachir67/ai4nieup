@@ -10,7 +10,7 @@ export type GoalCategory =
 export type GoalDifficulty = "beginner" | "intermediate" | "advanced";
 
 export interface Goal {
-  id: string;
+  _id: string; // Changé de 'id' à '_id' pour correspondre au format MongoDB
   title: string;
   description: string;
   category: GoalCategory;

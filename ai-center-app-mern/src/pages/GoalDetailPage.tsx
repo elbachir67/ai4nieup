@@ -21,11 +21,11 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 
 const resourceTypeConfig = {
-  video: { icon: Video, color: "text-red-500", bg: "bg-red-100" },
-  article: { icon: BookOpen, color: "text-blue-500", bg: "bg-blue-100" },
-  book: { icon: BookOpen, color: "text-purple-500", bg: "bg-purple-100" },
-  tutorial: { icon: Code, color: "text-green-500", bg: "bg-green-100" },
-  project: { icon: Laptop, color: "text-orange-500", bg: "bg-orange-100" },
+  video: { icon: Video, bg: "bg-red-100", text: "text-red-600" },
+  article: { icon: BookOpen, bg: "bg-blue-100", text: "text-blue-600" },
+  book: { icon: BookOpen, bg: "bg-purple-100", text: "text-purple-600" },
+  tutorial: { icon: Code, bg: "bg-green-100", text: "text-green-600" },
+  project: { icon: Laptop, bg: "bg-orange-100", text: "text-orange-600" },
 };
 
 const levelConfig = {
@@ -60,51 +60,37 @@ function GoalDetailPage() {
 
   useEffect(() => {
     const fetchGoal = async () => {
-      console.log("Current goalId:", goalId); // Debug log
-      console.log("Current URL:", window.location.href); // Debug log
-      console.log("User auth status:", !!user?.token); // Debug log
-
       if (!goalId) {
-        console.log("Current goalId:", goalId); // Debug log
-        console.error("No goalId provided in URL parameters");
-        setError("ID de l'objectif invalide");
+        setError("ID de l'objectif manquant");
         setLoading(false);
-        toast.error("ID de l'objectif invalide");
-        return;
-      }
-
-      if (!user?.token) {
-        console.error("No authentication token found");
-        toast.error("Vous devez être connecté");
-        navigate("/login");
         return;
       }
 
       try {
-        console.log("Fetching goal from:", `${api.goals}/${goalId}`); // Debug log
         const response = await fetch(`${api.goals}/${goalId}`, {
           headers: {
-            Authorization: `Bearer ${user.token}`,
+            Authorization: `Bearer ${user?.token}`,
             "Content-Type": "application/json",
           },
         });
 
-        console.log("API Response status:", response.status); // Debug log
-
         if (!response.ok) {
-          throw new Error(
-            response.status === 404
-              ? "Objectif non trouvé"
-              : "Erreur lors du chargement de l'objectif"
-          );
+          if (response.status === 404) {
+            throw new Error("Objectif non trouvé");
+          }
+          throw new Error("Erreur lors du chargement de l'objectif");
         }
 
         const data = await response.json();
-        console.log("Received goal data:", data); // Debug log
+
+        if (!data) {
+          throw new Error("Données de l'objectif invalides");
+        }
+
         setGoal(data);
         setError(null);
       } catch (error) {
-        console.error("Error fetching goal:", error);
+        console.error("Error:", error);
         setError(
           error instanceof Error
             ? error.message

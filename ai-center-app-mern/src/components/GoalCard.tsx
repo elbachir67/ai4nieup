@@ -49,7 +49,12 @@ const GoalCard: React.FC<GoalCardProps> = ({
   };
 
   const handleClick = () => {
-    navigate(`/goals/${goal.id}`);
+    // Vérifier que l'ID existe avant la navigation
+    if (goal._id) {
+      navigate(`/goals/${goal._id}`);
+    } else {
+      console.error("Goal ID is undefined:", goal);
+    }
   };
 
   return (
