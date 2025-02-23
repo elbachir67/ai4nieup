@@ -31,10 +31,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const savedUser = localStorage.getItem("user");
     return savedUser ? JSON.parse(savedUser).isAdmin : false;
   });
-  const [hasCompletedAssessment, setHasCompletedAssessment] = useState(false);
+  const [hasCompletedAssessment, setHasCompletedAssessment] = useState(() => {
+    const status = localStorage.getItem("assessmentStatus");
+    return status === "completed";
+  });
 
   const checkAssessmentStatus = async () => {
-    if (!user) return;
+    if (!user) return false;
 
     try {
       const response = await fetch(`${api.assessments}/history`, {
@@ -45,10 +48,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         const assessments = await response.json();
-        setHasCompletedAssessment(assessments && assessments.length > 0);
+        const status = assessments && assessments.length > 0;
+        setHasCompletedAssessment(status);
+        localStorage.setItem(
+          "assessmentStatus",
+          status ? "completed" : "pending"
+        );
+        return status;
       }
+      return false;
     } catch (error) {
       console.error("Error checking assessment status:", error);
+      return false;
     }
   };
 
@@ -57,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       checkAssessmentStatus();
     } else {
       setHasCompletedAssessment(false);
+      localStorage.removeItem("assessmentStatus");
     }
   }, [user]);
 
@@ -99,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAdmin(false);
     setHasCompletedAssessment(false);
     localStorage.removeItem("user");
+    localStorage.removeItem("assessmentStatus");
   };
 
   return (

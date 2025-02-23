@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { api } from "../config/api";
 import { Goal } from "../types";
+import { useAuth } from "../contexts/AuthContext";
 import {
   Clock,
   GraduationCap,
@@ -17,26 +18,47 @@ import {
   Building,
   DollarSign,
   Loader2,
+  Users,
+  Star,
+  ArrowRight,
+  CheckCircle,
+  Calendar,
+  Award,
 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
 
 const resourceTypeConfig = {
-  video: { icon: Video, bg: "bg-red-100", text: "text-red-600" },
-  article: { icon: BookOpen, bg: "bg-blue-100", text: "text-blue-600" },
-  book: { icon: BookOpen, bg: "bg-purple-100", text: "text-purple-600" },
-  tutorial: { icon: Code, bg: "bg-green-100", text: "text-green-600" },
-  project: { icon: Laptop, bg: "bg-orange-100", text: "text-orange-600" },
+  article: { icon: BookOpen, color: "text-blue-500", bg: "bg-blue-100" },
+  video: { icon: Video, color: "text-red-500", bg: "bg-red-100" },
+  course: { icon: GraduationCap, color: "text-green-500", bg: "bg-green-100" },
+  book: { icon: BookOpen, color: "text-purple-500", bg: "bg-purple-100" },
+  use_case: { icon: Laptop, color: "text-orange-500", bg: "bg-orange-100" },
 };
 
 const levelConfig = {
-  basic: { color: "text-green-500", bg: "bg-green-100", label: "Débutant" },
-  beginner: { color: "text-green-500", bg: "bg-green-100", label: "Débutant" },
+  basic: {
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-400/20",
+    label: "Débutant",
+  },
+  beginner: {
+    color: "text-emerald-400",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-400/20",
+    label: "Débutant",
+  },
   intermediate: {
-    color: "text-blue-500",
-    bg: "bg-blue-100",
+    color: "text-blue-400",
+    bg: "bg-blue-400/10",
+    border: "border-blue-400/20",
     label: "Intermédiaire",
   },
-  advanced: { color: "text-purple-500", bg: "bg-purple-100", label: "Avancé" },
+  advanced: {
+    color: "text-purple-400",
+    bg: "bg-purple-400/10",
+    border: "border-purple-400/20",
+    label: "Avancé",
+  },
 };
 
 const getLevelStyle = (level: string) => {
@@ -51,12 +73,15 @@ const getLevelStyle = (level: string) => {
 };
 
 function GoalDetailPage() {
-  const { goalId } = useParams<{ goalId: string }>();
+  const { goalId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [goal, setGoal] = useState<Goal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedModules, setExpandedModules] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     const fetchGoal = async () => {
@@ -87,6 +112,14 @@ function GoalDetailPage() {
           throw new Error("Données de l'objectif invalides");
         }
 
+        // Initialiser l'état d'expansion des modules
+        const initialExpandedState =
+          data.modules?.reduce((acc: any, _: any, index: number) => {
+            acc[index] = index === 0; // Premier module développé par défaut
+            return acc;
+          }, {}) || {};
+
+        setExpandedModules(initialExpandedState);
         setGoal(data);
         setError(null);
       } catch (error) {
@@ -104,6 +137,13 @@ function GoalDetailPage() {
 
     fetchGoal();
   }, [goalId, user, navigate]);
+
+  const toggleModule = (index: number) => {
+    setExpandedModules(prev => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  };
 
   if (loading) {
     return (
@@ -137,25 +177,65 @@ function GoalDetailPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-100 mb-4">
-            {goal.title}
-          </h1>
-          <p className="text-xl text-gray-400 mb-6">{goal.description}</p>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center text-gray-300">
-              <Clock className="w-5 h-5 mr-2" />
-              <span>{goal.estimatedDuration} semaines</span>
+        {/* Header avec gradient et effet glassmorphism */}
+        <div className="glass-card rounded-xl p-8 mb-8 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-100 mb-4">
+                {goal.title}
+              </h1>
+              <p className="text-xl text-gray-400 mb-6">{goal.description}</p>
+              <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex items-center text-gray-300 bg-gray-800/50 px-4 py-2 rounded-lg">
+                  <Clock className="w-5 h-5 mr-2" />
+                  <span>{goal.estimatedDuration} semaines</span>
+                </div>
+                <div className="flex items-center">
+                  <span
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      getLevelStyle(goal.level).bg
+                    } ${getLevelStyle(goal.level).color} border ${
+                      getLevelStyle(goal.level).border
+                    }`}
+                  >
+                    {getLevelStyle(goal.level).label}
+                  </span>
+                </div>
+                {goal.userProgress ? (
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-400 text-sm">Progression</span>
+                      <span className="text-gray-300 text-sm font-medium">
+                        {goal.userProgress.progress}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-700/30 rounded-full h-2">
+                      <div
+                        className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${goal.userProgress.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => navigate(`/goals/${goal._id}/start`)}
+                    className="ml-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center"
+                  >
+                    <BrainCircuit className="w-5 h-5 mr-2" />
+                    Commencer l'apprentissage
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center">
-              <span
-                className={`px-3 py-1 rounded-full text-sm ${
-                  getLevelStyle(goal.level).bg
-                } ${getLevelStyle(goal.level).color}`}
-              >
-                {getLevelStyle(goal.level).label}
-              </span>
+            <div className="flex flex-col items-end space-y-2">
+              <div className="flex items-center space-x-2 text-gray-400">
+                <Users className="w-5 h-5" />
+                <span>150+ apprenants</span>
+              </div>
+              <div className="flex items-center space-x-2 text-yellow-400">
+                <Star className="w-5 h-5 fill-current" />
+                <span>4.8/5</span>
+              </div>
             </div>
           </div>
         </div>
@@ -163,11 +243,17 @@ function GoalDetailPage() {
         {/* Prérequis */}
         {goal.prerequisites && goal.prerequisites.length > 0 && (
           <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-4">Prérequis</h2>
+            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
+              <Target className="w-6 h-6 mr-3 text-blue-400" />
+              Prérequis
+            </h2>
             <div className="grid gap-4 md:grid-cols-2">
               {goal.prerequisites.map((prereq, index) => (
-                <div key={index} className="bg-gray-800/50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-200 mb-2">
+                <div
+                  key={index}
+                  className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50"
+                >
+                  <h3 className="text-lg font-semibold text-gray-200 mb-3">
                     {prereq.category}
                   </h3>
                   <div className="space-y-2">
@@ -176,11 +262,11 @@ function GoalDetailPage() {
                       return (
                         <div
                           key={skillIndex}
-                          className="flex items-center justify-between"
+                          className="flex items-center justify-between p-2 rounded-lg bg-gray-700/30"
                         >
-                          <span className="text-gray-400">{skill.name}</span>
+                          <span className="text-gray-300">{skill.name}</span>
                           <span
-                            className={`px-2 py-1 rounded-full text-sm ${levelStyle.bg} ${levelStyle.color}`}
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${levelStyle.bg} ${levelStyle.color}`}
                           >
                             {levelStyle.label}
                           </span>
@@ -197,100 +283,143 @@ function GoalDetailPage() {
         {/* Modules */}
         {goal.modules && goal.modules.length > 0 && (
           <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6">Programme</h2>
+            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
+              <BookOpen className="w-6 h-6 mr-3 text-purple-400" />
+              Programme
+            </h2>
             <div className="space-y-4">
               {goal.modules.map((module, index) => (
-                <div key={index} className="bg-gray-800/50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-200 mb-2">
-                    {module.title}
-                  </h3>
-                  <p className="text-gray-400 mb-4">{module.description}</p>
-
-                  <div className="flex items-center text-gray-300 mb-4">
-                    <Clock className="w-5 h-5 mr-2" />
-                    <span>{module.duration} heures</span>
-                  </div>
-
-                  {module.skills && module.skills.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-md font-semibold text-gray-200 mb-2">
-                        Compétences
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {module.skills.map((skill, skillIndex) => {
-                          const levelStyle = getLevelStyle(skill.level);
-                          return (
-                            <span
-                              key={skillIndex}
-                              className={`px-3 py-1 rounded-full text-sm ${levelStyle.bg} ${levelStyle.color}`}
-                            >
-                              {skill.name}
-                            </span>
-                          );
-                        })}
+                <div
+                  key={index}
+                  className="bg-gray-800/50 rounded-lg border border-gray-700/50 overflow-hidden"
+                >
+                  <button
+                    onClick={() => toggleModule(index)}
+                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 mr-4">
+                        {index + 1}
+                      </div>
+                      <div className="text-left">
+                        <h3 className="text-lg font-semibold text-gray-200">
+                          {module.title}
+                        </h3>
+                        <p className="text-gray-400">{module.description}</p>
                       </div>
                     </div>
-                  )}
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center text-gray-400">
+                        <Clock className="w-4 h-4 mr-1" />
+                        <span>{module.duration}h</span>
+                      </div>
+                      <ChevronDown
+                        className={`w-5 h-5 text-gray-400 transform transition-transform ${
+                          expandedModules[index] ? "rotate-180" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
 
-                  {module.resources && module.resources.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="text-md font-semibold text-gray-200 mb-2">
-                        Ressources
-                      </h4>
-                      {module.resources.map((resource, resourceIndex) => {
-                        const typeConfig =
-                          resourceTypeConfig[
-                            resource.type as keyof typeof resourceTypeConfig
-                          ];
-                        const Icon = typeConfig?.icon || BookOpen;
-                        return (
-                          <a
-                            key={resourceIndex}
-                            href={resource.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center p-3 rounded-lg bg-gray-700/50 hover:bg-gray-700 transition-colors group"
-                          >
-                            <span
-                              className={`p-2 rounded-md ${
-                                typeConfig?.bg || "bg-gray-100"
-                              } mr-3 group-hover:scale-110 transition-transform`}
-                            >
-                              <Icon
-                                className={`w-4 h-4 ${
-                                  typeConfig?.color || "text-gray-600"
-                                }`}
-                              />
-                            </span>
-                            <div className="flex-1">
-                              <span className="text-gray-200 group-hover:text-gray-100 transition-colors">
-                                {resource.title}
-                              </span>
-                              <span className="text-sm text-gray-400 block">
-                                {resource.duration} minutes
-                              </span>
-                            </div>
-                          </a>
-                        );
-                      })}
+                  {expandedModules[index] && (
+                    <div className="px-6 pb-6 animate-fadeIn">
+                      {/* Compétences */}
+                      {module.skills && module.skills.length > 0 && (
+                        <div className="mb-6">
+                          <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
+                            <Award className="w-4 h-4 mr-2" />
+                            Compétences acquises
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {module.skills.map((skill, skillIndex) => {
+                              const levelStyle = getLevelStyle(skill.level);
+                              return (
+                                <span
+                                  key={skillIndex}
+                                  className={`px-3 py-1 rounded-full text-sm ${levelStyle.bg} ${levelStyle.color} border ${levelStyle.border}`}
+                                >
+                                  {skill.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ressources */}
+                      {module.resources && module.resources.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Ressources
+                          </h4>
+                          {module.resources.map((resource, resourceIndex) => {
+                            const typeConfig =
+                              resourceTypeConfig[
+                                resource.type as keyof typeof resourceTypeConfig
+                              ];
+                            const Icon = typeConfig?.icon || BookOpen;
+                            return (
+                              <a
+                                key={resourceIndex}
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center p-3 rounded-lg bg-gray-700/30 hover:bg-gray-700/50 transition-colors group"
+                              >
+                                <span
+                                  className={`p-2 rounded-md ${
+                                    typeConfig?.bg || "bg-gray-100"
+                                  } mr-3 group-hover:scale-110 transition-transform`}
+                                >
+                                  <Icon
+                                    className={`w-4 h-4 ${
+                                      typeConfig?.color || "text-gray-600"
+                                    }`}
+                                  />
+                                </span>
+                                <div className="flex-1">
+                                  <span className="text-gray-200 group-hover:text-gray-100 transition-colors">
+                                    {resource.title}
+                                  </span>
+                                  <div className="flex items-center space-x-3 mt-1">
+                                    <span className="text-sm text-gray-400">
+                                      {resource.duration} min
+                                    </span>
+                                  </div>
+                                </div>
+                                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Critères de validation */}
+                      {module.validationCriteria &&
+                        module.validationCriteria.length > 0 && (
+                          <div className="mt-6">
+                            <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Critères de validation
+                            </h4>
+                            <ul className="space-y-2">
+                              {module.validationCriteria.map(
+                                (criteria, criteriaIndex) => (
+                                  <li
+                                    key={criteriaIndex}
+                                    className="flex items-start space-x-2 text-gray-400"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2" />
+                                    <span>{criteria}</span>
+                                  </li>
+                                )
+                              )}
+                            </ul>
+                          </div>
+                        )}
                     </div>
                   )}
-
-                  {module.validationCriteria &&
-                    module.validationCriteria.length > 0 && (
-                      <div className="mt-4">
-                        <h4 className="text-md font-semibold text-gray-200 mb-2">
-                          Critères de validation
-                        </h4>
-                        <ul className="list-disc list-inside text-gray-400 space-y-1">
-                          {module.validationCriteria.map(
-                            (criteria, criteriaIndex) => (
-                              <li key={criteriaIndex}>{criteria}</li>
-                            )
-                          )}
-                        </ul>
-                      </div>
-                    )}
                 </div>
               ))}
             </div>
@@ -300,23 +429,41 @@ function GoalDetailPage() {
         {/* Débouchés */}
         {goal.careerOpportunities && goal.careerOpportunities.length > 0 && (
           <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6">Débouchés</h2>
+            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
+              <Building className="w-6 h-6 mr-3 text-green-400" />
+              Débouchés
+            </h2>
             <div className="grid gap-6 md:grid-cols-2">
               {goal.careerOpportunities.map((opportunity, index) => (
-                <div key={index} className="bg-gray-800/50 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-gray-200 mb-2 flex items-center">
-                    <Building className="w-5 h-5 mr-2" />
+                <div
+                  key={index}
+                  className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50"
+                >
+                  <h3 className="text-lg font-semibold text-gray-200 mb-3 flex items-center">
+                    <Trophy className="w-5 h-5 mr-2 text-yellow-400" />
                     {opportunity.title}
                   </h3>
-                  <p className="text-gray-400 mb-3">
+                  <p className="text-gray-400 mb-4">
                     {opportunity.description}
                   </p>
-                  <div className="flex items-center text-gray-300 mb-2">
-                    <DollarSign className="w-4 h-4 mr-1" />
+                  <div className="flex items-center text-gray-300 mb-3">
+                    <DollarSign className="w-4 h-4 mr-1 text-green-400" />
                     <span>{opportunity.averageSalary}</span>
                   </div>
-                  <div className="text-sm text-gray-400">
-                    Entreprises : {opportunity.companies.join(", ")}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-gray-300">
+                      Entreprises qui recrutent :
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {opportunity.companies.map((company, companyIndex) => (
+                        <span
+                          key={companyIndex}
+                          className="px-3 py-1 rounded-full text-sm bg-gray-700/50 text-gray-300"
+                        >
+                          {company}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -327,26 +474,33 @@ function GoalDetailPage() {
         {/* Certification */}
         {goal.certification?.available && (
           <div className="glass-card rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-gray-100 mb-4">
+            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
+              <Award className="w-6 h-6 mr-3 text-yellow-400" />
               Certification
             </h2>
-            <div className="bg-gray-800/50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-200 mb-2 flex items-center">
-                <Trophy className="w-5 h-5 mr-2" />
-                {goal.certification.name}
-              </h3>
-              <p className="text-gray-400 mb-3">
-                Proposée par {goal.certification.provider}
-              </p>
-              <a
-                href={goal.certification.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-purple-400 hover:text-purple-300 transition-colors"
-              >
-                <GraduationCap className="w-4 h-4 mr-1" />
-                En savoir plus
-              </a>
+            <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-200 mb-2">
+                    {goal.certification.name}
+                  </h3>
+                  <p className="text-gray-400 mb-4">
+                    Proposée par {goal.certification.provider}
+                  </p>
+                  <a
+                    href={goal.certification.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors"
+                  >
+                    <GraduationCap className="w-5 h-5 mr-2" />
+                    En savoir plus
+                  </a>
+                </div>
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/20">
+                  <Trophy className="w-8 h-8 text-yellow-400" />
+                </div>
+              </div>
             </div>
           </div>
         )}
