@@ -15,7 +15,23 @@ import {
   Award,
   Loader2,
   AlertCircle,
+  Bot,
+  Video,
+  GraduationCap,
+  Laptop,
 } from "lucide-react";
+
+const resourceTypeConfig = {
+  article: { icon: BookOpen, color: "text-blue-400", bg: "bg-blue-400/20" },
+  video: { icon: Video, color: "text-red-400", bg: "bg-red-400/20" },
+  course: {
+    icon: GraduationCap,
+    color: "text-green-400",
+    bg: "bg-green-400/20",
+  },
+  book: { icon: BookOpen, color: "text-purple-400", bg: "bg-purple-400/20" },
+  use_case: { icon: Laptop, color: "text-orange-400", bg: "bg-orange-400/20" },
+};
 
 function PathwayPage() {
   const { pathwayId } = useParams();
@@ -40,6 +56,7 @@ function PathwayPage() {
         }
 
         const data = await response.json();
+        console.log("Pathway data:", data); // Pour le débogage
         setPathway(data);
       } catch (error) {
         console.error("Error:", error);
@@ -51,59 +68,42 @@ function PathwayPage() {
       }
     };
 
-    fetchPathway();
+    if (pathwayId && user) {
+      fetchPathway();
+    }
   }, [pathwayId, user]);
 
   const handleResourceComplete = async (
     moduleIndex: number,
     resourceId: string
   ) => {
+    if (!pathway || !user) return;
+
     try {
       const response = await fetch(
-        `${api.pathways}/${pathwayId}/modules/${moduleIndex}/resources/${resourceId}`,
+        `${api.pathways}/${pathwayId}/modules/${moduleIndex}`,
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${user?.token}`,
+            Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ completed: true }),
+          body: JSON.stringify({
+            resourceId,
+            completed: true,
+          }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la mise à jour de la ressource");
+        throw new Error("Erreur lors de la mise à jour");
       }
 
       const updatedPathway = await response.json();
       setPathway(updatedPathway);
     } catch (error) {
       console.error("Error:", error);
-    }
-  };
-
-  const handleQuizComplete = async (moduleIndex: number, score: number) => {
-    try {
-      const response = await fetch(
-        `${api.pathways}/${pathwayId}/modules/${moduleIndex}/quiz`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${user?.token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ score }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Erreur lors de la mise à jour du quiz");
-      }
-
-      const updatedPathway = await response.json();
-      setPathway(updatedPathway);
-    } catch (error) {
-      console.error("Error:", error);
+      toast.error("Erreur lors de la mise à jour de la progression");
     }
   };
 
@@ -142,7 +142,7 @@ function PathwayPage() {
         <div className="glass-card rounded-xl p-6 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-100">
-              {pathway.goalId}
+              {pathway.goalId.title}
             </h1>
             <div className="flex items-center space-x-2">
               <span
@@ -219,34 +219,43 @@ function PathwayPage() {
                 <h3 className="text-md font-medium text-gray-300">
                   Ressources
                 </h3>
-                {module.resources.map((resource, resourceIndex) => (
-                  <div
-                    key={resourceIndex}
-                    className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
-                  >
-                    <div className="flex items-center">
-                      <BookOpen className="w-5 h-5 text-gray-400 mr-3" />
-                      <span className="text-gray-300">
-                        Ressource {resourceIndex + 1}
-                      </span>
-                    </div>
-                    {resource.completed ? (
-                      <div className="flex items-center text-green-400">
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        <span>Terminé</span>
+                {module.resources.map((resource, resourceIndex) => {
+                  const typeConfig =
+                    resourceTypeConfig[resource.type] ||
+                    resourceTypeConfig.article;
+                  return (
+                    <div
+                      key={resourceIndex}
+                      className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
+                    >
+                      <div className="flex items-center">
+                        <div className={`p-2 rounded-lg ${typeConfig.bg} mr-3`}>
+                          <typeConfig.icon
+                            className={`w-5 h-5 ${typeConfig.color}`}
+                          />
+                        </div>
+                        <span className="text-gray-300">
+                          Ressource {resourceIndex + 1}
+                        </span>
                       </div>
-                    ) : (
-                      <button
-                        onClick={() =>
-                          handleResourceComplete(index, resource.resourceId)
-                        }
-                        className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        Marquer comme terminé
-                      </button>
-                    )}
-                  </div>
-                ))}
+                      {resource.completed ? (
+                        <div className="flex items-center text-green-400">
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          <span>Terminé</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() =>
+                            handleResourceComplete(index, resource.resourceId)
+                          }
+                          className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                          Marquer comme terminé
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Quiz */}
@@ -284,7 +293,7 @@ function PathwayPage() {
         </div>
 
         {/* Recommandations adaptatives */}
-        {pathway.adaptiveRecommendations.length > 0 && (
+        {pathway.adaptiveRecommendations?.length > 0 && (
           <div className="mt-8">
             <h2 className="text-xl font-bold text-gray-100 mb-6">
               Recommandations personnalisées

@@ -61,17 +61,6 @@ const levelConfig = {
   },
 };
 
-const getLevelStyle = (level: string) => {
-  const normalizedLevel = level.toLowerCase();
-  if (normalizedLevel === "basic" || normalizedLevel === "beginner") {
-    return levelConfig.basic;
-  }
-  return (
-    levelConfig[normalizedLevel as keyof typeof levelConfig] ||
-    levelConfig.intermediate
-  );
-};
-
 function GoalDetailPage() {
   const { goalId } = useParams();
   const navigate = useNavigate();
@@ -79,6 +68,7 @@ function GoalDetailPage() {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingPathway, setGeneratingPathway] = useState(false);
   const [expandedModules, setExpandedModules] = useState<{
     [key: string]: boolean;
   }>({});
@@ -100,17 +90,11 @@ function GoalDetailPage() {
         });
 
         if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error("Objectif non trouvé");
-          }
           throw new Error("Erreur lors du chargement de l'objectif");
         }
 
         const data = await response.json();
-
-        if (!data) {
-          throw new Error("Données de l'objectif invalides");
-        }
+        setGoal(data);
 
         // Initialiser l'état d'expansion des modules
         const initialExpandedState =
@@ -120,14 +104,11 @@ function GoalDetailPage() {
           }, {}) || {};
 
         setExpandedModules(initialExpandedState);
-        setGoal(data);
         setError(null);
       } catch (error) {
         console.error("Error:", error);
         setError(
-          error instanceof Error
-            ? error.message
-            : "Erreur lors du chargement de l'objectif"
+          error instanceof Error ? error.message : "Erreur lors du chargement"
         );
         toast.error("Erreur lors du chargement de l'objectif");
       } finally {
@@ -136,7 +117,35 @@ function GoalDetailPage() {
     };
 
     fetchGoal();
-  }, [goalId, user, navigate]);
+  }, [goalId, user]);
+
+  const generatePathway = async () => {
+    if (!goal || !user) return;
+
+    setGeneratingPathway(true);
+    try {
+      const response = await fetch(`${api.pathways}/generate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${user.token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ goalId: goal._id }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la génération du parcours");
+      }
+
+      const pathway = await response.json();
+      toast.success("Parcours personnalisé généré avec succès !");
+      navigate(`/pathways/${pathway._id}`);
+    } catch (error) {
+      toast.error("Erreur lors de la génération du parcours");
+    } finally {
+      setGeneratingPathway(false);
+    }
+  };
 
   const toggleModule = (index: number) => {
     setExpandedModules(prev => ({
@@ -193,38 +202,31 @@ function GoalDetailPage() {
                 <div className="flex items-center">
                   <span
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      getLevelStyle(goal.level).bg
-                    } ${getLevelStyle(goal.level).color} border ${
-                      getLevelStyle(goal.level).border
+                      levelConfig[goal.level].bg
+                    } ${levelConfig[goal.level].color} border ${
+                      levelConfig[goal.level].border
                     }`}
                   >
-                    {getLevelStyle(goal.level).label}
+                    {levelConfig[goal.level].label}
                   </span>
                 </div>
-                {goal.userProgress ? (
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-gray-400 text-sm">Progression</span>
-                      <span className="text-gray-300 text-sm font-medium">
-                        {goal.userProgress.progress}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-700/30 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${goal.userProgress.progress}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => navigate(`/goals/${goal._id}/start`)}
-                    className="ml-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center"
-                  >
-                    <BrainCircuit className="w-5 h-5 mr-2" />
-                    Commencer l'apprentissage
-                  </button>
-                )}
+                <button
+                  onClick={generatePathway}
+                  disabled={generatingPathway}
+                  className="ml-4 px-6 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all duration-300 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generatingPathway ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Génération en cours...
+                    </>
+                  ) : (
+                    <>
+                      <BrainCircuit className="w-5 h-5 mr-2" />
+                      Générer mon parcours personnalisé
+                    </>
+                  )}
+                </button>
               </div>
             </div>
             <div className="flex flex-col items-end space-y-2">
@@ -258,7 +260,7 @@ function GoalDetailPage() {
                   </h3>
                   <div className="space-y-2">
                     {prereq.skills.map((skill, skillIndex) => {
-                      const levelStyle = getLevelStyle(skill.level);
+                      const levelStyle = levelConfig[skill.level];
                       return (
                         <div
                           key={skillIndex}
@@ -332,7 +334,7 @@ function GoalDetailPage() {
                           </h4>
                           <div className="flex flex-wrap gap-2">
                             {module.skills.map((skill, skillIndex) => {
-                              const levelStyle = getLevelStyle(skill.level);
+                              const levelStyle = levelConfig[skill.level];
                               return (
                                 <span
                                   key={skillIndex}
