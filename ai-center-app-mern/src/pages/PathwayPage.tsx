@@ -2,26 +2,32 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
-import { Pathway } from "../types";
 import {
-  BookOpen,
   Clock,
   CheckCircle,
-  XCircle,
-  Play,
-  Pause,
-  ArrowRight,
   Calendar,
   Award,
   Loader2,
   AlertCircle,
-  Bot,
+  BookOpen,
   Video,
   GraduationCap,
   Laptop,
+  Bot,
+  ChevronDown,
+  Play,
+  DivideIcon as LucideIcon,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
+import { Pathway, ResourceType, PathwayResource } from "../types";
 
-const resourceTypeConfig = {
+interface ResourceTypeConfig {
+  icon: typeof BookOpen;
+  color: string;
+  bg: string;
+}
+
+const resourceTypeConfig: Record<ResourceType, ResourceTypeConfig> = {
   article: { icon: BookOpen, color: "text-blue-400", bg: "bg-blue-400/20" },
   video: { icon: Video, color: "text-red-400", bg: "bg-red-400/20" },
   course: {
@@ -43,10 +49,12 @@ function PathwayPage() {
 
   useEffect(() => {
     const fetchPathway = async () => {
+      if (!pathwayId || !user) return;
+
       try {
         const response = await fetch(`${api.pathways}/${pathwayId}`, {
           headers: {
-            Authorization: `Bearer ${user?.token}`,
+            Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
         });
@@ -56,28 +64,27 @@ function PathwayPage() {
         }
 
         const data = await response.json();
-        console.log("Pathway data:", data); // Pour le débogage
         setPathway(data);
+        setError(null);
       } catch (error) {
         console.error("Error:", error);
         setError(
           error instanceof Error ? error.message : "Erreur lors du chargement"
         );
+        toast.error("Erreur lors du chargement du parcours");
       } finally {
         setLoading(false);
       }
     };
 
-    if (pathwayId && user) {
-      fetchPathway();
-    }
+    fetchPathway();
   }, [pathwayId, user]);
 
   const handleResourceComplete = async (
     moduleIndex: number,
     resourceId: string
   ) => {
-    if (!pathway || !user) return;
+    if (!pathway || !user || !pathwayId) return;
 
     try {
       const response = await fetch(
@@ -101,6 +108,7 @@ function PathwayPage() {
 
       const updatedPathway = await response.json();
       setPathway(updatedPathway);
+      toast.success("Progression mise à jour");
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur lors de la mise à jour de la progression");
@@ -219,43 +227,42 @@ function PathwayPage() {
                 <h3 className="text-md font-medium text-gray-300">
                   Ressources
                 </h3>
-                {module.resources.map((resource, resourceIndex) => {
-                  const typeConfig =
-                    resourceTypeConfig[resource.type] ||
-                    resourceTypeConfig.article;
-                  return (
-                    <div
-                      key={resourceIndex}
-                      className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
-                    >
-                      <div className="flex items-center">
-                        <div className={`p-2 rounded-lg ${typeConfig.bg} mr-3`}>
-                          <typeConfig.icon
-                            className={`w-5 h-5 ${typeConfig.color}`}
-                          />
+                {module.resources.map(
+                  (resource: PathwayResource, resourceIndex: number) => {
+                    const ResourceIcon =
+                      (resource.type &&
+                        resourceTypeConfig[resource.type]?.icon) ||
+                      BookOpen;
+                    return (
+                      <div
+                        key={resourceIndex}
+                        className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50"
+                      >
+                        <div className="flex items-center">
+                          <ResourceIcon className="w-5 h-5 text-gray-400 mr-3" />
+                          <span className="text-gray-300">
+                            Ressource {resourceIndex + 1}
+                          </span>
                         </div>
-                        <span className="text-gray-300">
-                          Ressource {resourceIndex + 1}
-                        </span>
+                        {resource.completed ? (
+                          <div className="flex items-center text-green-400">
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span>Terminé</span>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              handleResourceComplete(index, resource.resourceId)
+                            }
+                            className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                          >
+                            Marquer comme terminé
+                          </button>
+                        )}
                       </div>
-                      {resource.completed ? (
-                        <div className="flex items-center text-green-400">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          <span>Terminé</span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() =>
-                            handleResourceComplete(index, resource.resourceId)
-                          }
-                          className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                        >
-                          Marquer comme terminé
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  }
+                )}
               </div>
 
               {/* Quiz */}
@@ -273,7 +280,8 @@ function PathwayPage() {
                     </div>
                     <div className="text-sm text-gray-400">
                       Complété le{" "}
-                      {new Date(module.quiz.completedAt).toLocaleDateString()}
+                      {module.quiz.completedAt &&
+                        new Date(module.quiz.completedAt).toLocaleDateString()}
                     </div>
                   </div>
                 ) : (

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { api } from "../config/api";
-import { Goal } from "../types";
+import { Goal, GoalDifficulty } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Clock,
@@ -24,6 +24,7 @@ import {
   CheckCircle,
   Calendar,
   Award,
+  AlertCircle,
 } from "lucide-react";
 
 const resourceTypeConfig = {
@@ -34,13 +35,14 @@ const resourceTypeConfig = {
   use_case: { icon: Laptop, color: "text-orange-500", bg: "bg-orange-100" },
 };
 
-const levelConfig = {
-  basic: {
-    color: "text-emerald-400",
-    bg: "bg-emerald-400/10",
-    border: "border-emerald-400/20",
-    label: "Débutant",
-  },
+interface LevelConfig {
+  color: string;
+  bg: string;
+  border: string;
+  label: string;
+}
+
+const levelConfig: Record<GoalDifficulty, LevelConfig> = {
   beginner: {
     color: "text-emerald-400",
     bg: "bg-emerald-400/10",
@@ -75,16 +77,12 @@ function GoalDetailPage() {
 
   useEffect(() => {
     const fetchGoal = async () => {
-      if (!goalId) {
-        setError("ID de l'objectif manquant");
-        setLoading(false);
-        return;
-      }
+      if (!goalId || !user) return;
 
       try {
         const response = await fetch(`${api.goals}/${goalId}`, {
           headers: {
-            Authorization: `Bearer ${user?.token}`,
+            Authorization: `Bearer ${user.token}`,
             "Content-Type": "application/json",
           },
         });
@@ -116,7 +114,9 @@ function GoalDetailPage() {
       }
     };
 
-    fetchGoal();
+    if (goalId && user) {
+      fetchGoal();
+    }
   }, [goalId, user]);
 
   const generatePathway = async () => {
@@ -134,14 +134,37 @@ function GoalDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de la génération du parcours");
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Erreur lors de la génération du parcours"
+        );
       }
 
       const pathway = await response.json();
       toast.success("Parcours personnalisé généré avec succès !");
       navigate(`/pathways/${pathway._id}`);
     } catch (error) {
-      toast.error("Erreur lors de la génération du parcours");
+      console.error("Error:", error);
+
+      // Message d'erreur plus explicite
+      if (error instanceof Error && error.message.includes("existe déjà")) {
+        toast.error(
+          "Un parcours pour cet objectif existe déjà. Consultez votre tableau de bord pour y accéder.",
+          {
+            duration: 5000,
+            icon: <AlertCircle className="text-red-500" />,
+          }
+        );
+        // Rediriger vers le tableau de bord après un court délai
+        setTimeout(() => navigate("/dashboard"), 2000);
+      } else {
+        toast.error(
+          "Impossible de générer le parcours. Veuillez réessayer plus tard.",
+          {
+            duration: 4000,
+          }
+        );
+      }
     } finally {
       setGeneratingPathway(false);
     }
@@ -168,8 +191,8 @@ function GoalDetailPage() {
   if (error || !goal) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-gray-400 mb-4">
+        <div className="text-center text-gray-400">
+          <div className="text-xl font-bold mb-4">
             {error || "Objectif non trouvé"}
           </div>
           <button
@@ -186,7 +209,7 @@ function GoalDetailPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header avec gradient et effet glassmorphism */}
+        {/* En-tête avec gradient et effet glassmorphism */}
         <div className="glass-card rounded-xl p-8 mb-8 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10">
           <div className="flex items-start justify-between">
             <div>
@@ -202,12 +225,14 @@ function GoalDetailPage() {
                 <div className="flex items-center">
                   <span
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      levelConfig[goal.level].bg
-                    } ${levelConfig[goal.level].color} border ${
-                      levelConfig[goal.level].border
+                      levelConfig[goal.level as GoalDifficulty].bg
+                    } ${
+                      levelConfig[goal.level as GoalDifficulty].color
+                    } border ${
+                      levelConfig[goal.level as GoalDifficulty].border
                     }`}
                   >
-                    {levelConfig[goal.level].label}
+                    {levelConfig[goal.level as GoalDifficulty].label}
                   </span>
                 </div>
                 <button
@@ -242,230 +267,144 @@ function GoalDetailPage() {
           </div>
         </div>
 
-        {/* Prérequis */}
-        {goal.prerequisites && goal.prerequisites.length > 0 && (
-          <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
-              <Target className="w-6 h-6 mr-3 text-blue-400" />
-              Prérequis
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {goal.prerequisites.map((prereq, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50"
-                >
-                  <h3 className="text-lg font-semibold text-gray-200 mb-3">
-                    {prereq.category}
-                  </h3>
-                  <div className="space-y-2">
-                    {prereq.skills.map((skill, skillIndex) => {
-                      const levelStyle = levelConfig[skill.level];
-                      return (
-                        <div
-                          key={skillIndex}
-                          className="flex items-center justify-between p-2 rounded-lg bg-gray-700/30"
-                        >
-                          <span className="text-gray-300">{skill.name}</span>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${levelStyle.bg} ${levelStyle.color}`}
-                          >
-                            {levelStyle.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Modules */}
-        {goal.modules && goal.modules.length > 0 && (
-          <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
-              <BookOpen className="w-6 h-6 mr-3 text-purple-400" />
-              Programme
-            </h2>
-            <div className="space-y-4">
-              {goal.modules.map((module, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-800/50 rounded-lg border border-gray-700/50 overflow-hidden"
-                >
-                  <button
-                    onClick={() => toggleModule(index)}
-                    className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-700/30 transition-colors"
-                  >
-                    <div className="flex items-center">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/20 text-purple-400 mr-4">
-                        {index + 1}
-                      </div>
-                      <div className="text-left">
-                        <h3 className="text-lg font-semibold text-gray-200">
-                          {module.title}
-                        </h3>
-                        <p className="text-gray-400">{module.description}</p>
-                      </div>
+        <div className="space-y-6">
+          {goal.modules?.map((module, index) => (
+            <div key={index} className="glass-card rounded-xl p-6">
+              <button
+                onClick={() => toggleModule(index)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-200">
+                    Module {index + 1}: {module.title}
+                  </h3>
+                  <p className="text-gray-400 mt-1">{module.description}</p>
+                </div>
+                <ChevronDown
+                  className={`w-5 h-5 text-gray-400 transform transition-transform ${
+                    expandedModules[index] ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+
+              {expandedModules[index] && (
+                <div className="mt-6 space-y-6 animate-fadeIn">
+                  {/* Durée et compétences */}
+                  <div className="flex items-center space-x-6">
+                    <div className="flex items-center text-gray-300">
+                      <Clock className="w-5 h-5 mr-2" />
+                      <span>{module.duration} heures</span>
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center text-gray-400">
-                        <Clock className="w-4 h-4 mr-1" />
-                        <span>{module.duration}h</span>
+                    {module.skills && (
+                      <div className="flex items-center space-x-2">
+                        {module.skills.map((skill, skillIndex) => (
+                          <span
+                            key={skillIndex}
+                            className="px-3 py-1 bg-gray-800/50 rounded-full text-sm text-gray-300"
+                          >
+                            {skill.name}
+                          </span>
+                        ))}
                       </div>
-                      <ChevronDown
-                        className={`w-5 h-5 text-gray-400 transform transition-transform ${
-                          expandedModules[index] ? "rotate-180" : ""
-                        }`}
-                      />
+                    )}
+                  </div>
+
+                  {/* Ressources */}
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-medium text-gray-300">
+                      Ressources
+                    </h4>
+                    <div className="grid gap-4">
+                      {module.resources?.map((resource, resourceIndex) => {
+                        const typeConfig = resourceTypeConfig[resource.type];
+                        const Icon = typeConfig.icon;
+                        return (
+                          <a
+                            key={resourceIndex}
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800/70 transition-colors group"
+                          >
+                            <div
+                              className={`p-2 rounded-lg ${typeConfig.bg} mr-4 group-hover:scale-110 transition-transform`}
+                            >
+                              <Icon className={`w-5 h-5 ${typeConfig.color}`} />
+                            </div>
+                            <div className="flex-1">
+                              <h5 className="text-gray-200 font-medium mb-1">
+                                {resource.title}
+                              </h5>
+                              <p className="text-sm text-gray-400">
+                                {resource.duration} minutes
+                              </p>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-gray-400 group-hover:translate-x-1 transition-transform" />
+                          </a>
+                        );
+                      })}
                     </div>
-                  </button>
+                  </div>
 
-                  {expandedModules[index] && (
-                    <div className="px-6 pb-6 animate-fadeIn">
-                      {/* Compétences */}
-                      {module.skills && module.skills.length > 0 && (
-                        <div className="mb-6">
-                          <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
-                            <Award className="w-4 h-4 mr-2" />
-                            Compétences acquises
-                          </h4>
-                          <div className="flex flex-wrap gap-2">
-                            {module.skills.map((skill, skillIndex) => {
-                              const levelStyle = levelConfig[skill.level];
-                              return (
-                                <span
-                                  key={skillIndex}
-                                  className={`px-3 py-1 rounded-full text-sm ${levelStyle.bg} ${levelStyle.color} border ${levelStyle.border}`}
-                                >
-                                  {skill.name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Ressources */}
-                      {module.resources && module.resources.length > 0 && (
-                        <div className="space-y-3">
-                          <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
-                            <BookOpen className="w-4 h-4 mr-2" />
-                            Ressources
-                          </h4>
-                          {module.resources.map((resource, resourceIndex) => {
-                            const typeConfig =
-                              resourceTypeConfig[
-                                resource.type as keyof typeof resourceTypeConfig
-                              ];
-                            const Icon = typeConfig?.icon || BookOpen;
-                            return (
-                              <a
-                                key={resourceIndex}
-                                href={resource.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center p-3 rounded-lg bg-gray-700/30 hover:bg-gray-700/50 transition-colors group"
-                              >
-                                <span
-                                  className={`p-2 rounded-md ${
-                                    typeConfig?.bg || "bg-gray-100"
-                                  } mr-3 group-hover:scale-110 transition-transform`}
-                                >
-                                  <Icon
-                                    className={`w-4 h-4 ${
-                                      typeConfig?.color || "text-gray-600"
-                                    }`}
-                                  />
-                                </span>
-                                <div className="flex-1">
-                                  <span className="text-gray-200 group-hover:text-gray-100 transition-colors">
-                                    {resource.title}
-                                  </span>
-                                  <div className="flex items-center space-x-3 mt-1">
-                                    <span className="text-sm text-gray-400">
-                                      {resource.duration} min
-                                    </span>
-                                  </div>
-                                </div>
-                                <ArrowRight className="w-4 h-4 text-gray-400 group-hover:translate-x-1 transition-transform" />
-                              </a>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Critères de validation */}
-                      {module.validationCriteria &&
-                        module.validationCriteria.length > 0 && (
-                          <div className="mt-6">
-                            <h4 className="text-md font-semibold text-gray-300 mb-3 flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Critères de validation
-                            </h4>
-                            <ul className="space-y-2">
-                              {module.validationCriteria.map(
-                                (criteria, criteriaIndex) => (
-                                  <li
-                                    key={criteriaIndex}
-                                    className="flex items-start space-x-2 text-gray-400"
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2" />
-                                    <span>{criteria}</span>
-                                  </li>
-                                )
-                              )}
-                            </ul>
-                          </div>
+                  {/* Critères de validation */}
+                  {module.validationCriteria && (
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-medium text-gray-300">
+                        Critères de validation
+                      </h4>
+                      <ul className="space-y-2">
+                        {module.validationCriteria.map(
+                          (criteria, criteriaIndex) => (
+                            <li
+                              key={criteriaIndex}
+                              className="flex items-center text-gray-400"
+                            >
+                              <CheckCircle className="w-5 h-5 mr-2 text-green-400" />
+                              {criteria}
+                            </li>
+                          )
                         )}
+                      </ul>
                     </div>
                   )}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
 
-        {/* Débouchés */}
+        {/* Opportunités de carrière */}
         {goal.careerOpportunities && goal.careerOpportunities.length > 0 && (
-          <div className="glass-card rounded-xl p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
-              <Building className="w-6 h-6 mr-3 text-green-400" />
-              Débouchés
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-gray-100 mb-6">
+              Opportunités de carrière
             </h2>
             <div className="grid gap-6 md:grid-cols-2">
               {goal.careerOpportunities.map((opportunity, index) => (
-                <div
-                  key={index}
-                  className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50"
-                >
-                  <h3 className="text-lg font-semibold text-gray-200 mb-3 flex items-center">
-                    <Trophy className="w-5 h-5 mr-2 text-yellow-400" />
-                    {opportunity.title}
-                  </h3>
+                <div key={index} className="glass-card rounded-xl p-6">
+                  <div className="flex items-center mb-4">
+                    <Building className="w-6 h-6 text-purple-400 mr-3" />
+                    <h3 className="text-xl font-semibold text-gray-200">
+                      {opportunity.title}
+                    </h3>
+                  </div>
                   <p className="text-gray-400 mb-4">
                     {opportunity.description}
                   </p>
-                  <div className="flex items-center text-gray-300 mb-3">
-                    <DollarSign className="w-4 h-4 mr-1 text-green-400" />
+                  <div className="flex items-center text-gray-300 mb-4">
+                    <DollarSign className="w-5 h-5 mr-2 text-green-400" />
                     <span>{opportunity.averageSalary}</span>
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-300">
-                      Entreprises qui recrutent :
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {opportunity.companies.map((company, companyIndex) => (
-                        <span
-                          key={companyIndex}
-                          className="px-3 py-1 rounded-full text-sm bg-gray-700/50 text-gray-300"
-                        >
-                          {company}
-                        </span>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    {opportunity.companies.map((company, companyIndex) => (
+                      <span
+                        key={companyIndex}
+                        className="px-3 py-1 bg-gray-800/50 rounded-full text-sm text-gray-300"
+                      >
+                        {company}
+                      </span>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -475,33 +414,30 @@ function GoalDetailPage() {
 
         {/* Certification */}
         {goal.certification?.available && (
-          <div className="glass-card rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center">
-              <Award className="w-6 h-6 mr-3 text-yellow-400" />
-              Certification
-            </h2>
-            <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700/50">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-200 mb-2">
-                    {goal.certification.name}
-                  </h3>
-                  <p className="text-gray-400 mb-4">
-                    Proposée par {goal.certification.provider}
-                  </p>
-                  <a
-                    href={goal.certification.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 bg-yellow-500/20 text-yellow-400 rounded-lg hover:bg-yellow-500/30 transition-colors"
-                  >
-                    <GraduationCap className="w-5 h-5 mr-2" />
-                    En savoir plus
-                  </a>
-                </div>
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/20">
-                  <Trophy className="w-8 h-8 text-yellow-400" />
-                </div>
+          <div className="mt-12">
+            <div className="glass-card rounded-xl p-6">
+              <div className="flex items-center mb-4">
+                <Award className="w-6 h-6 text-yellow-400 mr-3" />
+                <h2 className="text-2xl font-bold text-gray-100">
+                  Certification
+                </h2>
+              </div>
+              <div className="space-y-4">
+                <h3 className="text-xl font-semibold text-gray-200">
+                  {goal.certification.name}
+                </h3>
+                <p className="text-gray-400">
+                  Délivré par {goal.certification.provider}
+                </p>
+                <a
+                  href={goal.certification.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-purple-400 hover:text-purple-300"
+                >
+                  En savoir plus
+                  <ArrowRight className="w-4 h-4 ml-1" />
+                </a>
               </div>
             </div>
           </div>
