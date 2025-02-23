@@ -104,3 +104,54 @@ export interface UserProfile {
     completedAt: string;
   }[];
 }
+
+// Types existants...
+
+export interface Pathway {
+  _id: string;
+  userId: string;
+  goalId: string;
+  status: "active" | "completed" | "paused";
+  progress: number;
+  currentModule: number;
+  moduleProgress: {
+    moduleIndex: number;
+    completed: boolean;
+    resources: {
+      resourceId: string;
+      completed: boolean;
+      completedAt: Date;
+    }[];
+    quiz: {
+      completed: boolean;
+      score: number;
+      completedAt: Date;
+    };
+  }[];
+  startedAt: Date;
+  lastAccessedAt: Date;
+  estimatedCompletionDate: Date;
+  adaptiveRecommendations: {
+    type: "resource" | "practice" | "review";
+    description: string;
+    priority: "high" | "medium" | "low";
+    status: "pending" | "completed" | "skipped";
+  }[];
+}
+
+export interface LearnerDashboard {
+  activePathways: Pathway[];
+  completedPathways: Pathway[];
+  nextMilestones: {
+    pathwayId: string;
+    goalTitle: string;
+    moduleName: string;
+    dueDate: Date;
+  }[];
+  learningStats: {
+    totalHoursSpent: number;
+    completedResources: number;
+    averageQuizScore: number;
+    streakDays: number;
+  };
+}

@@ -39,16 +39,14 @@ const userSchema = new mongoose.Schema(
 // Hash password before saving
 userSchema.pre("save", async function (next) {
   try {
+    // Only hash the password if it has been modified (or is new)
     if (!this.isModified("password")) {
       return next();
     }
 
-    logger.info(`Hashing password for user: ${this.email}`);
     const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(this.password, salt);
-    logger.info(`Generated hash for ${this.email}:`, hash);
-
-    this.password = hash;
+    this.password = await bcrypt.hash(this.password, salt);
+    logger.info(`Password hashed for user: ${this.email}`);
     next();
   } catch (error) {
     logger.error("Error hashing password:", error);
@@ -60,12 +58,8 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     logger.info(`Comparing password for user: ${this.email}`);
-    logger.info(`Stored hash for ${this.email}:`, this.password);
-    logger.info(`Candidate password length: ${candidatePassword.length}`);
-
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
-    logger.info(`Password comparison result for ${this.email}:`, isMatch);
-
+    logger.info(`Password match result for ${this.email}: ${isMatch}`);
     return isMatch;
   } catch (error) {
     logger.error(`Error comparing password for ${this.email}:`, error);
@@ -76,19 +70,22 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 // Generate JWT token
 userSchema.methods.generateAuthToken = function () {
   try {
-    const payload = {
-      id: this._id,
-      email: this.email,
-      role: this.role,
-    };
-
     if (!process.env.JWT_SECRET) {
       throw new Error("JWT_SECRET is not defined");
     }
 
-    return jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      {
+        id: this._id,
+        email: this.email,
+        role: this.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    logger.info(`Generated auth token for user: ${this.email}`);
+    return token;
   } catch (error) {
     logger.error("Error generating auth token:", error);
     throw error;
@@ -102,21 +99,15 @@ userSchema.statics.findByCredentials = async function (email, password) {
 
     const user = await this.findOne({ email, isActive: true });
     if (!user) {
-      logger.info(`No user found with email: ${email}`);
+      logger.warn(`No user found with email: ${email}`);
       throw new Error("Invalid credentials");
     }
 
-    logger.info(`Found user: ${email}, checking password...`);
     const isMatch = await user.comparePassword(password);
-
     if (!isMatch) {
-      logger.info(`Password does not match for user: ${email}`);
+      logger.warn(`Invalid password for user: ${email}`);
       throw new Error("Invalid credentials");
     }
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
 
     logger.info(`User authenticated successfully: ${email}`);
     return user;

@@ -9,8 +9,8 @@ import AssessmentPage from "./pages/AssessmentPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
-import AddGoalPage from "./pages/AddGoalPage";
-import EditGoalPage from "./pages/EditGoalPage";
+import DashboardPage from "./pages/DashboardPage";
+import PathwayPage from "./pages/PathwayPage";
 
 function PrivateRoute({
   children,
@@ -45,18 +45,18 @@ function App() {
         <Route path="/goals" element={<GoalsExplorerPage />} />
         <Route path="/goals/:goalId" element={<GoalDetailPage />} />
         <Route
-          path="/add-goal"
+          path="/dashboard"
           element={
-            <PrivateRoute adminOnly>
-              <AddGoalPage />
+            <PrivateRoute>
+              <DashboardPage />
             </PrivateRoute>
           }
         />
         <Route
-          path="/edit-goal/:goalId"
+          path="/pathways/:pathwayId"
           element={
-            <PrivateRoute adminOnly>
-              <EditGoalPage />
+            <PrivateRoute>
+              <PathwayPage />
             </PrivateRoute>
           }
         />

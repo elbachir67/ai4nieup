@@ -1,35 +1,88 @@
 import express from "express";
-import { UserPathway } from "../models/UserPathway.js";
+import { Pathway } from "../models/Pathway.js";
 import { Goal } from "../models/LearningGoal.js";
 import { auth } from "../middleware/auth.js";
 import { logger } from "../utils/logger.js";
 
 const router = express.Router();
 
-// Obtenir les parcours de l'utilisateur
-router.get("/my", auth, async (req, res) => {
+// Obtenir le tableau de bord de l'apprenant
+router.get("/dashboard", auth, async (req, res) => {
   try {
-    const pathways = await UserPathway.find({ userId: req.user._id })
-      .populate("goalId")
-      .sort("-startedAt");
+    // Récupérer les parcours actifs
+    const activePathways = await Pathway.find({
+      userId: req.user._id,
+      status: "active",
+    }).populate("goalId");
 
-    res.json(pathways);
+    // Récupérer les parcours complétés
+    const completedPathways = await Pathway.find({
+      userId: req.user._id,
+      status: "completed",
+    }).populate("goalId");
+
+    // Calculer les statistiques d'apprentissage
+    const learningStats = {
+      totalHoursSpent: 0,
+      completedResources: 0,
+      averageQuizScore: 0,
+      streakDays: 0,
+    };
+
+    // Calculer les prochaines étapes
+    const nextMilestones = activePathways.map(pathway => ({
+      pathwayId: pathway._id,
+      goalTitle: pathway.goalId.title,
+      moduleName: `Module ${pathway.currentModule + 1}`,
+      dueDate: pathway.estimatedCompletionDate,
+    }));
+
+    // Agréger les statistiques
+    activePathways.forEach(pathway => {
+      pathway.moduleProgress.forEach(module => {
+        learningStats.completedResources += module.resources.filter(
+          r => r.completed
+        ).length;
+        if (module.quiz.completed) {
+          learningStats.averageQuizScore += module.quiz.score;
+        }
+      });
+    });
+
+    // Calculer la moyenne des scores
+    if (learningStats.averageQuizScore > 0) {
+      learningStats.averageQuizScore = Math.round(
+        learningStats.averageQuizScore /
+          activePathways.reduce(
+            (acc, p) =>
+              acc + p.moduleProgress.filter(m => m.quiz.completed).length,
+            0
+          )
+      );
+    }
+
+    res.json({
+      activePathways,
+      completedPathways,
+      nextMilestones,
+      learningStats,
+    });
   } catch (error) {
-    logger.error("Error fetching user pathways:", error);
-    res.status(500).json({ error: "Error fetching pathways" });
+    logger.error("Error fetching dashboard:", error);
+    res.status(500).json({ error: "Error fetching dashboard data" });
   }
 });
 
-// Démarrer un nouveau parcours
+// Créer un nouveau parcours
 router.post("/start", auth, async (req, res) => {
   try {
     const { goalId } = req.body;
 
     // Vérifier si un parcours existe déjà
-    const existingPathway = await UserPathway.findOne({
+    const existingPathway = await Pathway.findOne({
       userId: req.user._id,
       goalId,
-      status: { $in: ["in_progress", "paused"] },
+      status: { $in: ["active", "paused"] },
     });
 
     if (existingPathway) {
@@ -45,7 +98,7 @@ router.post("/start", auth, async (req, res) => {
     }
 
     // Créer le parcours
-    const pathway = new UserPathway({
+    const pathway = new Pathway({
       userId: req.user._id,
       goalId,
       moduleProgress: goal.modules.map((_, index) => ({
@@ -66,13 +119,32 @@ router.post("/start", auth, async (req, res) => {
   }
 });
 
+// Obtenir un parcours spécifique
+router.get("/:pathwayId", auth, async (req, res) => {
+  try {
+    const pathway = await Pathway.findOne({
+      _id: req.params.pathwayId,
+      userId: req.user._id,
+    }).populate("goalId");
+
+    if (!pathway) {
+      return res.status(404).json({ error: "Parcours non trouvé" });
+    }
+
+    res.json(pathway);
+  } catch (error) {
+    logger.error("Error fetching pathway:", error);
+    res.status(500).json({ error: "Error fetching pathway" });
+  }
+});
+
 // Mettre à jour la progression d'un module
 router.put("/:pathwayId/modules/:moduleIndex", auth, async (req, res) => {
   try {
     const { pathwayId, moduleIndex } = req.params;
     const { resourceId, completed, quizScore } = req.body;
 
-    const pathway = await UserPathway.findOne({
+    const pathway = await Pathway.findOne({
       _id: pathwayId,
       userId: req.user._id,
     });
@@ -132,7 +204,7 @@ router.put("/:pathwayId/modules/:moduleIndex", auth, async (req, res) => {
 // Obtenir les recommandations
 router.get("/:pathwayId/recommendations", auth, async (req, res) => {
   try {
-    const pathway = await UserPathway.findOne({
+    const pathway = await Pathway.findOne({
       _id: req.params.pathwayId,
       userId: req.user._id,
     });

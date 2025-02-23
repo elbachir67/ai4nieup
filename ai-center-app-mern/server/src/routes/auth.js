@@ -18,7 +18,9 @@ const registerValidation = [
   body("email").isEmail().normalizeEmail(),
   body("password")
     .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters long"),
+    .withMessage("Password must be at least 6 characters long")
+    .matches(/\d/)
+    .withMessage("Password must contain a number"),
 ];
 
 // Login route
@@ -26,43 +28,52 @@ router.post("/login", loginValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      logger.error("Validation errors:", errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password, isAdminLogin } = req.body;
+    logger.info(`Login attempt for email: ${email}`);
 
-    try {
-      const user = await User.findByCredentials(email, password);
-
-      // Check for admin login
-      if (isAdminLogin && user.role !== "admin") {
-        return res
-          .status(403)
-          .json({ error: "Access denied. Admin privileges required." });
-      }
-
-      const token = user.generateAuthToken();
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
-
-      res.json({
-        success: true,
-        user: {
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          isAdmin: user.role === "admin",
-        },
-        token,
-      });
-    } catch (error) {
-      logger.error("Login error:", error);
+    const user = await User.findOne({ email, isActive: true });
+    if (!user) {
+      logger.warn(`No user found with email: ${email}`);
       return res.status(401).json({ error: "Invalid credentials" });
     }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      logger.warn(`Invalid password for user: ${email}`);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Check for admin login
+    if (isAdminLogin && user.role !== "admin") {
+      logger.warn(`Admin login attempt by non-admin user: ${email}`);
+      return res
+        .status(403)
+        .json({ error: "Access denied. Admin privileges required." });
+    }
+
+    const token = user.generateAuthToken();
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    logger.info(`Successful login for user: ${email}`);
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        isAdmin: user.role === "admin",
+      },
+      token,
+    });
   } catch (error) {
-    logger.error("Server error during login:", error);
+    logger.error("Login error:", error);
     res.status(500).json({ error: "Server error during login" });
   }
 });
@@ -72,27 +83,31 @@ router.post("/register", registerValidation, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      logger.error("Validation errors:", errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
+    logger.info(`Registration attempt for email: ${email}`);
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      logger.warn(`Registration failed - email already exists: ${email}`);
       return res.status(400).json({ error: "Email already registered" });
     }
 
     // Create new user
     const user = new User({
       email,
-      password,
+      password, // Le mot de passe sera hashé automatiquement par le middleware pre-save
       role: "user",
       isActive: true,
       lastLogin: new Date(),
     });
 
     await user.save();
+    logger.info(`New user registered: ${email}`);
 
     const token = user.generateAuthToken();
 
