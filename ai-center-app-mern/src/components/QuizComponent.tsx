@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Question } from '../types';
-import { CheckCircle2, XCircle, ArrowRight, Clock } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Question } from "../types";
+import { CheckCircle2, XCircle, ArrowRight, Clock } from "lucide-react";
 
 interface QuizComponentProps {
   questions: Question[];
   onComplete: (score: number, responses: any[]) => void;
 }
 
-const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) => {
+const QuizComponent: React.FC<QuizComponentProps> = ({
+  questions,
+  onComplete,
+}) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -27,8 +30,8 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
     return (
       <div className="text-center p-6 bg-gray-800/50 rounded-lg">
         <p className="text-gray-300">
-          Aucune question disponible pour votre profil. 
-          Veuillez revenir à l'étape précédente.
+          Aucune question disponible pour votre profil. Veuillez revenir à
+          l'étape précédente.
         </p>
       </div>
     );
@@ -39,23 +42,28 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
 
   const handleAnswerSelect = (optionId: string) => {
     if (showExplanation) return;
-    
+
     const timeSpent = (Date.now() - startTime) / 1000;
     setSelectedAnswer(optionId);
     setShowExplanation(true);
 
-    const isCorrect = currentQuestion.options.find(opt => opt.id === optionId)?.isCorrect;
+    const isCorrect = currentQuestion.options.find(
+      opt => opt.id === optionId
+    )?.isCorrect;
     if (isCorrect) {
       setScore(prev => prev + 1);
     }
 
-    setResponses(prev => [...prev, {
-      questionId: currentQuestion.id,
-      selectedOption: optionId,
-      timeSpent,
-      category: currentQuestion.category,
-      difficulty: currentQuestion.difficulty
-    }]);
+    setResponses(prev => [
+      ...prev,
+      {
+        questionId: currentQuestion.id,
+        selectedOption: optionId,
+        timeSpent,
+        category: currentQuestion.category,
+        difficulty: currentQuestion.difficulty,
+      },
+    ]);
   };
 
   const handleNext = () => {
@@ -72,17 +80,17 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
   const getOptionStyle = (optionId: string) => {
     if (!showExplanation) {
       return selectedAnswer === optionId
-        ? 'border-purple-500 bg-purple-500/10'
-        : 'border-gray-700 hover:border-purple-500/50';
+        ? "border-purple-500 bg-purple-500/10"
+        : "border-gray-700 hover:border-purple-500/50";
     }
 
     const option = currentQuestion.options.find(opt => opt.id === optionId);
     if (option?.isCorrect) {
-      return 'border-green-500 bg-green-500/10';
+      return "border-green-500 bg-green-500/10";
     }
     return optionId === selectedAnswer
-      ? 'border-red-500 bg-red-500/10'
-      : 'border-gray-700 opacity-50';
+      ? "border-red-500 bg-red-500/10"
+      : "border-gray-700 opacity-50";
   };
 
   return (
@@ -91,7 +99,9 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
       <div className="w-full bg-gray-700 rounded-full h-2 mb-6">
         <div
           className="bg-purple-500 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+          style={{
+            width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
+          }}
         />
       </div>
 
@@ -104,17 +114,24 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
           <div className="flex items-center text-gray-400">
             <Clock className="w-4 h-4 mr-1" />
             <span className="text-sm">
-              {currentQuestion.difficulty === 'basic' ? '60s' : 
-               currentQuestion.difficulty === 'intermediate' ? '90s' : '120s'}
+              {currentQuestion.difficulty === "basic"
+                ? "60s"
+                : currentQuestion.difficulty === "intermediate"
+                ? "90s"
+                : "120s"}
             </span>
           </div>
         </div>
         <div className="flex items-center space-x-2 mb-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            currentQuestion.difficulty === 'basic' ? 'bg-green-500/20 text-green-400' :
-            currentQuestion.difficulty === 'intermediate' ? 'bg-blue-500/20 text-blue-400' :
-            'bg-purple-500/20 text-purple-400'
-          }`}>
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              currentQuestion.difficulty === "basic"
+                ? "bg-green-500/20 text-green-400"
+                : currentQuestion.difficulty === "intermediate"
+                ? "bg-blue-500/20 text-blue-400"
+                : "bg-purple-500/20 text-purple-400"
+            }`}
+          >
             {currentQuestion.difficulty}
           </span>
           <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
@@ -126,7 +143,7 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
 
       {/* Options */}
       <div className="space-y-3">
-        {currentQuestion.options.map((option) => (
+        {currentQuestion.options.map(option => (
           <button
             key={option.id}
             onClick={() => handleAnswerSelect(option.id)}
@@ -140,9 +157,11 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
               {showExplanation && option.isCorrect && (
                 <CheckCircle2 className="w-5 h-5 text-green-500" />
               )}
-              {showExplanation && !option.isCorrect && selectedAnswer === option.id && (
-                <XCircle className="w-5 h-5 text-red-500" />
-              )}
+              {showExplanation &&
+                !option.isCorrect &&
+                selectedAnswer === option.id && (
+                  <XCircle className="w-5 h-5 text-red-500" />
+                )}
             </div>
           </button>
         ))}
@@ -161,7 +180,7 @@ const QuizComponent: React.FC<QuizComponentProps> = ({ questions, onComplete }) 
           onClick={handleNext}
           className="mt-6 w-full py-3 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors duration-200 flex items-center justify-center"
         >
-          {isLastQuestion ? 'Voir les résultats' : 'Question suivante'}
+          {isLastQuestion ? "Voir les résultats" : "Question suivante"}
           <ArrowRight className="ml-2 w-4 h-4" />
         </button>
       )}

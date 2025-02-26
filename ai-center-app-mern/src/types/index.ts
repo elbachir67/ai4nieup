@@ -70,9 +70,24 @@ export interface Goal {
 }
 
 // Types pour les quiz
+export interface Question {
+  id: string;
+  text: string;
+  category: string;
+  difficulty: "basic" | "intermediate" | "advanced";
+  options: {
+    id: string;
+    text: string;
+    isCorrect: boolean;
+  }[];
+  explanation: string;
+}
+
 export interface QuizQuestion {
   id: string;
   text: string;
+  category: string;
+  difficulty: "basic" | "intermediate" | "advanced";
   options: {
     id: string;
     text: string;

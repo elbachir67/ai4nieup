@@ -7,6 +7,70 @@ import PathwayGenerationService from "../services/PathwayGenerationService.js";
 
 const router = express.Router();
 
+// Récupérer les données du tableau de bord
+router.get("/user/dashboard", auth, async (req, res) => {
+  try {
+    // Récupérer les parcours actifs de l'utilisateur
+    const activePathways = await Pathway.find({
+      userId: req.user.id,
+      status: { $in: ["active", "paused"] },
+    }).populate("goalId");
+
+    // Récupérer les parcours complétés
+    const completedPathways = await Pathway.find({
+      userId: req.user.id,
+      status: "completed",
+    }).populate("goalId");
+
+    // Calculer les statistiques d'apprentissage
+    const learningStats = {
+      totalHoursSpent: 0,
+      completedResources: 0,
+      averageQuizScore: 0,
+      streakDays: 0,
+    };
+
+    // Calculer les statistiques à partir des parcours
+    const allPathways = [...activePathways, ...completedPathways];
+    let totalQuizzes = 0;
+    let totalScore = 0;
+
+    allPathways.forEach(pathway => {
+      // Compter les ressources complétées
+      pathway.moduleProgress.forEach(module => {
+        learningStats.completedResources += module.resources.filter(
+          r => r.completed
+        ).length;
+
+        if (module.quiz.completed && module.quiz.score) {
+          totalQuizzes++;
+          totalScore += module.quiz.score;
+        }
+      });
+    });
+
+    // Calculer la moyenne des scores aux quiz
+    learningStats.averageQuizScore =
+      totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
+
+    // Calculer le streak (à implémenter selon la logique métier)
+    learningStats.streakDays = calculateStreak(allPathways);
+
+    // Calculer les prochaines étapes
+    const nextMilestones = calculateNextMilestones(activePathways);
+
+    res.json({
+      learningStats,
+      activePathways,
+      completedPathways,
+      nextMilestones,
+    });
+  } catch (error) {
+    logger.error("Error fetching dashboard data:", error);
+    res.status(500).json({ error: "Error fetching dashboard data" });
+  }
+});
+
 // Générer un nouveau parcours
 router.post("/generate", auth, async (req, res) => {
   try {
@@ -148,5 +212,51 @@ router.put("/:pathwayId/modules/:moduleIndex", auth, async (req, res) => {
     res.status(500).json({ error: "Error updating progress" });
   }
 });
+
+// Fonctions utilitaires
+function calculateStreak(pathways) {
+  // Implémentation simple du calcul de streak
+  // À améliorer selon les besoins spécifiques
+  let streak = 0;
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  // Vérifier si l'utilisateur a été actif aujourd'hui ou hier
+  const recentActivity = pathways.some(pathway => {
+    const lastAccess = new Date(pathway.lastAccessedAt);
+    return (
+      lastAccess.toDateString() === today.toDateString() ||
+      lastAccess.toDateString() === yesterday.toDateString()
+    );
+  });
+
+  if (recentActivity) {
+    streak = 1;
+    // Parcourir les jours précédents pour calculer le streak
+    let currentDate = new Date(yesterday);
+    pathways.forEach(pathway => {
+      if (new Date(pathway.lastAccessedAt) >= currentDate) {
+        streak++;
+      }
+    });
+  }
+
+  return streak;
+}
+
+function calculateNextMilestones(activePathways) {
+  return activePathways.map(pathway => {
+    const currentModule = pathway.moduleProgress[pathway.currentModule];
+    const dueDate = new Date(pathway.startedAt);
+    dueDate.setDate(dueDate.getDate() + 7); // Exemple: échéance d'une semaine
+
+    return {
+      goalTitle: pathway.goalId.title,
+      moduleName: `Module ${pathway.currentModule + 1}`,
+      dueDate,
+    };
+  });
+}
 
 export const pathwayRoutes = router;

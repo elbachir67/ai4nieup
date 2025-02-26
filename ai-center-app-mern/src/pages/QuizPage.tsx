@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
-import { QuizQuestion, QuizResult } from "../types";
+import { QuizQuestion, Question } from "../types";
 import {
   Clock,
   AlertTriangle,
@@ -11,19 +11,30 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import {
+  calculateDetailedScore,
+  generateRecommendations,
+} from "../utils/scoringSystem";
 
 function QuizPage() {
   const { pathwayId, moduleId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [startTime, setStartTime] = useState(0);
-  const [answers, setAnswers] = useState<QuizResult["answers"]>([]);
+  const [answers, setAnswers] = useState<
+    {
+      questionId: string;
+      selectedOption: string;
+      isCorrect: boolean;
+      timeSpent: number;
+    }[]
+  >([]);
   const [quizStartTime] = useState(Date.now());
 
   useEffect(() => {
@@ -113,9 +124,18 @@ function QuizPage() {
   const handleQuizComplete = async () => {
     if (!pathwayId || !moduleId || !user) return;
 
+    // Calculer le score détaillé
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const score = Math.round((correctAnswers / questions.length) * 100);
     const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+
+    // Calculer les statistiques détaillées
+    const categoryScores = calculateDetailedScore(questions, answers);
+    const recommendations = generateRecommendations(categoryScores, {
+      mathLevel: "intermediate",
+      programmingLevel: "intermediate",
+      domain: "ml",
+    });
 
     try {
       const response = await fetch(
@@ -130,6 +150,8 @@ function QuizPage() {
             score,
             answers,
             totalTimeSpent,
+            categoryScores,
+            recommendations,
           }),
         }
       );
@@ -147,6 +169,8 @@ function QuizPage() {
             correctAnswers,
             timeSpent: totalTimeSpent,
             answers,
+            categoryScores,
+            recommendations,
           },
         },
       });

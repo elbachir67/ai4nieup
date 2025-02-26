@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, LogOut, User, Plus } from "lucide-react";
+import { BookOpen, LogOut, User, Plus, LayoutDashboard } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 function Navbar() {
@@ -34,26 +34,39 @@ function Navbar() {
             <Link to="/" className={`nav-link ${isActive("/")}`}>
               Accueil
             </Link>
-            <Link to="/goals" className={`nav-link ${isActive("/goals")}`}>
-              Objectifs
-            </Link>
-            <Link
-              to="/assessment"
-              className={`nav-link ${isActive("/assessment")}`}
-            >
-              Évaluation
-            </Link>
 
-            {isAdmin && (
+            {isAuthenticated ? (
               <>
                 <Link
-                  to="/add-goal"
-                  className="flex items-center px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors duration-200"
+                  to="/dashboard"
+                  className={`nav-link ${isActive("/dashboard")}`}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvel Objectif
+                  <div className="flex items-center space-x-1">
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Tableau de bord</span>
+                  </div>
+                </Link>
+                <Link to="/goals" className={`nav-link ${isActive("/goals")}`}>
+                  Objectifs
                 </Link>
               </>
+            ) : (
+              <Link
+                to="/assessment"
+                className={`nav-link ${isActive("/assessment")}`}
+              >
+                Évaluation
+              </Link>
+            )}
+
+            {isAdmin && (
+              <Link
+                to="/add-goal"
+                className="flex items-center px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 transition-colors duration-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvel Objectif
+              </Link>
             )}
 
             {isAuthenticated ? (

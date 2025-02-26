@@ -32,7 +32,7 @@ function DashboardPage() {
 
     const fetchDashboard = async () => {
       try {
-        const response = await fetch(`${api.pathways}/dashboard`, {
+        const response = await fetch(`${api.pathways}/user/dashboard`, {
           headers: {
             Authorization: `Bearer ${user?.token}`,
             "Content-Type": "application/json",
@@ -155,7 +155,7 @@ function DashboardPage() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-200">
-                      {pathway.goalId}
+                      {pathway.goalId.title}
                     </h3>
                     <p className="text-gray-400">
                       Module {pathway.currentModule + 1} sur{" "}
@@ -255,7 +255,7 @@ function DashboardPage() {
                 <div key={pathway._id} className="glass-card p-6 rounded-xl">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-200">
-                      {pathway.goalId}
+                      {pathway.goalId.title}
                     </h3>
                     <div className="p-2 rounded-full bg-green-500/20">
                       <CheckCircle className="w-5 h-5 text-green-400" />
