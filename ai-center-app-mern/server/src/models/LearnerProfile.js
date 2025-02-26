@@ -92,9 +92,15 @@ const learnerProfileSchema = new mongoose.Schema(
   }
 );
 
-// Indexes
-learnerProfileSchema.index({ userId: 1 });
-learnerProfileSchema.index({ "assessments.category": 1 });
+// Définir les index de manière explicite avec des noms uniques
+learnerProfileSchema.index(
+  { userId: 1 },
+  { name: "learnerProfile_userId_index" }
+);
+learnerProfileSchema.index(
+  { "assessments.category": 1 },
+  { name: "learnerProfile_assessments_category_index" }
+);
 
 export const LearnerProfile = mongoose.model(
   "LearnerProfile",

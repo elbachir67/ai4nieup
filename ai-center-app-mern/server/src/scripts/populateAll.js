@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
-import { User } from "../models/User.js";
-import { Goal } from "../models/LearningGoal.js";
-import { Concept } from "../models/Concept.js";
-import { ConceptAssessment } from "../models/ConceptAssessment.js";
-import { LearnerProfile } from "../models/LearnerProfile.js";
-import { Pathway } from "../models/Pathway.js";
-import { LearningData } from "../models/LearningData.js";
+import bcrypt from "bcryptjs";
+import {
+  User,
+  Goal,
+  Concept,
+  ConceptAssessment,
+  LearnerProfile,
+  Quiz,
+} from "../models/index.js";
 import { logger } from "../utils/logger.js";
 import dotenv from "dotenv";
 
@@ -30,6 +32,86 @@ const users = [
     email: "admin@ucad.edu.sn",
     password: "Admin123!",
     role: "admin",
+  },
+];
+
+// Données de test pour les quiz
+const quizzes = [
+  {
+    moduleId: "0",
+    title: "Introduction au Machine Learning",
+    description: "Testez vos connaissances sur les concepts fondamentaux du ML",
+    timeLimit: 1800,
+    passingScore: 70,
+    questions: [
+      {
+        text: "Quelle est la différence principale entre l'apprentissage supervisé et non supervisé ?",
+        options: [
+          {
+            text: "L'apprentissage supervisé utilise des données étiquetées, l'apprentissage non supervisé non",
+            isCorrect: true,
+          },
+          {
+            text: "L'apprentissage supervisé est plus rapide",
+            isCorrect: false,
+          },
+          {
+            text: "L'apprentissage non supervisé nécessite plus de données",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "L'apprentissage supervisé utilise des données étiquetées pour entraîner le modèle, tandis que l'apprentissage non supervisé trouve des patterns dans des données non étiquetées.",
+      },
+      {
+        text: "Qu'est-ce que la validation croisée ?",
+        options: [
+          {
+            text: "Une technique pour évaluer la performance d'un modèle sur différents sous-ensembles de données",
+            isCorrect: true,
+          },
+          {
+            text: "Une méthode pour nettoyer les données",
+            isCorrect: false,
+          },
+          {
+            text: "Un algorithme d'optimisation",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "La validation croisée divise les données en plusieurs sous-ensembles pour évaluer la performance du modèle de manière plus robuste.",
+      },
+    ],
+  },
+  {
+    moduleId: "1",
+    title: "Deep Learning Fondamental",
+    description:
+      "Évaluez votre compréhension des concepts de base du deep learning",
+    timeLimit: 2400,
+    passingScore: 75,
+    questions: [
+      {
+        text: "Qu'est-ce qu'une fonction d'activation dans un réseau de neurones ?",
+        options: [
+          {
+            text: "Une fonction qui introduit de la non-linéarité dans le réseau",
+            isCorrect: true,
+          },
+          {
+            text: "Une fonction qui initialise les poids",
+            isCorrect: false,
+          },
+          {
+            text: "Une fonction qui détermine la taille du réseau",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "La fonction d'activation introduit de la non-linéarité dans le réseau, permettant d'apprendre des patterns complexes.",
+      },
+    ],
   },
 ];
 
@@ -86,7 +168,7 @@ const learningGoals = [
         resources: [
           {
             title: "Cours ML Stanford",
-            type: "video", // Changé de 'course' à 'video'
+            type: "video",
             url: "https://www.coursera.org/learn/machine-learning",
             duration: 120,
           },
@@ -94,44 +176,6 @@ const learningGoals = [
         validationCriteria: [
           "Comprendre les types d'apprentissage",
           "Implémenter un modèle simple",
-        ],
-      },
-    ],
-  },
-  {
-    title: "Deep Learning Specialist",
-    description: "Spécialisez-vous en deep learning",
-    category: "dl",
-    estimatedDuration: 16,
-    level: "advanced",
-    careerOpportunities: [
-      {
-        title: "DL Engineer",
-        description: "Conception de réseaux de neurones",
-        averageSalary: "50-85k€/an",
-        companies: ["OpenAI", "DeepMind", "Google Brain"],
-      },
-    ],
-    modules: [
-      {
-        title: "Réseaux de Neurones",
-        description: "Fondamentaux des réseaux de neurones",
-        duration: 25,
-        skills: [
-          { name: "PyTorch", level: "intermediate" },
-          { name: "Backpropagation", level: "intermediate" },
-        ],
-        resources: [
-          {
-            title: "Deep Learning Book",
-            type: "book", // 'book' est un type valide
-            url: "https://www.deeplearningbook.org/",
-            duration: 180,
-          },
-        ],
-        validationCriteria: [
-          "Comprendre l'architecture des réseaux",
-          "Implémenter un réseau simple",
         ],
       },
     ],
@@ -165,7 +209,7 @@ const assessments = [
   },
 ];
 
-async function populateTestData() {
+async function populateDatabase() {
   try {
     await mongoose.connect(MONGODB_URI);
     logger.info("Connected to MongoDB");
@@ -177,8 +221,7 @@ async function populateTestData() {
       Concept.deleteMany({}),
       ConceptAssessment.deleteMany({}),
       LearnerProfile.deleteMany({}),
-      Pathway.deleteMany({}),
-      LearningData.deleteMany({}),
+      Quiz.deleteMany({}),
     ]);
     logger.info("Cleaned existing data");
 
@@ -186,9 +229,13 @@ async function populateTestData() {
     const createdUsers = [];
     for (const userData of users) {
       try {
+        // Hasher le mot de passe manuellement
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(userData.password, salt);
+
         const user = new User({
           email: userData.email,
-          password: userData.password,
+          password: hashedPassword,
           role: userData.role,
           isActive: true,
           lastLogin: new Date(),
@@ -196,16 +243,6 @@ async function populateTestData() {
 
         const savedUser = await user.save();
         logger.info(`Created user: ${savedUser.email}`);
-
-        // Vérifier l'authentification
-        const testAuth = await User.findByCredentials(
-          userData.email,
-          userData.password
-        );
-        logger.info(
-          `Test authentication successful for user: ${testAuth.email}`
-        );
-
         createdUsers.push(savedUser);
       } catch (error) {
         logger.error(`Error creating user ${userData.email}:`, error);
@@ -238,17 +275,25 @@ async function populateTestData() {
     }
 
     // Créer les objectifs d'apprentissage
-    const createdGoals = [];
-    for (const goalData of learningGoals) {
-      const goal = new Goal({
-        ...goalData,
-        requiredConcepts: concepts
-          .filter(c => c.category === goalData.category)
-          .map(c => conceptMap.get(c.name)),
-      });
-      const savedGoal = await goal.save();
-      createdGoals.push(savedGoal);
-      logger.info(`Created learning goal: ${savedGoal.title}`);
+    const createdGoals = await Promise.all(
+      learningGoals.map(async goalData => {
+        const goal = new Goal({
+          ...goalData,
+          requiredConcepts: concepts
+            .filter(c => c.category === goalData.category)
+            .map(c => conceptMap.get(c.name)),
+        });
+        const savedGoal = await goal.save();
+        logger.info(`Created learning goal: ${savedGoal.title}`);
+        return savedGoal;
+      })
+    );
+
+    // Créer les quiz
+    for (const quizData of quizzes) {
+      const quiz = new Quiz(quizData);
+      await quiz.save();
+      logger.info(`Created quiz: ${quiz.title} for module ${quiz.moduleId}`);
     }
 
     // Créer les évaluations
@@ -292,32 +337,6 @@ async function populateTestData() {
         });
         await profile.save();
         logger.info(`Created learner profile for user: ${user.email}`);
-
-        // Créer un parcours d'apprentissage
-        if (createdGoals.length > 0) {
-          const pathway = new Pathway({
-            userId: user._id,
-            goalId: createdGoals[0]._id,
-            status: "active",
-            progress: 0,
-            currentModule: 0,
-            moduleProgress: [
-              {
-                moduleIndex: 0,
-                completed: false,
-                resources: [],
-                quiz: { completed: false },
-              },
-            ],
-            startedAt: new Date(),
-            lastAccessedAt: new Date(),
-            estimatedCompletionDate: new Date(
-              Date.now() + 90 * 24 * 60 * 60 * 1000
-            ), // +90 jours
-          });
-          await pathway.save();
-          logger.info(`Created learning pathway for user: ${user.email}`);
-        }
       }
     }
 
@@ -332,7 +351,7 @@ async function populateTestData() {
 }
 
 // Exécuter le script
-populateTestData().catch(error => {
+populateDatabase().catch(error => {
   logger.error("Fatal error during database population:", error);
   process.exit(1);
 });

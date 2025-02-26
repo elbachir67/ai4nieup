@@ -10,7 +10,8 @@
     "dev": "nodemon src/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "populate": "node src/scripts/populateDb.js"
+    "populate": "node src/scripts/populateDB.js",
+    "populate:quiz": "node src/scripts/populateQuizData.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -11,6 +11,8 @@ import RegisterPage from "./pages/RegisterPage";
 import AdminLoginPage from "./pages/AdminLoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import PathwayPage from "./pages/PathwayPage";
+import QuizPage from "./pages/QuizPage";
+import QuizResultsPage from "./pages/QuizResultsPage";
 
 function PrivateRoute({
   children,
@@ -57,6 +59,22 @@ function App() {
           element={
             <PrivateRoute>
               <PathwayPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pathways/:pathwayId/modules/:moduleId/quiz"
+          element={
+            <PrivateRoute>
+              <QuizPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pathways/:pathwayId/quiz-results"
+          element={
+            <PrivateRoute>
+              <QuizResultsPage />
             </PrivateRoute>
           }
         />

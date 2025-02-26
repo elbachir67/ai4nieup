@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { api } from "../config/api";
-import { Goal, GoalDifficulty } from "../types";
+import { Goal, GoalDifficulty, ResourceType } from "../types";
 import { useAuth } from "../contexts/AuthContext";
 import {
   Clock,
@@ -27,14 +27,48 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const resourceTypeConfig = {
-  article: { icon: BookOpen, color: "text-blue-500", bg: "bg-blue-100" },
-  video: { icon: Video, color: "text-red-500", bg: "bg-red-100" },
-  course: { icon: GraduationCap, color: "text-green-500", bg: "bg-green-100" },
-  book: { icon: BookOpen, color: "text-purple-500", bg: "bg-purple-100" },
-  use_case: { icon: Laptop, color: "text-orange-500", bg: "bg-orange-100" },
+// Configuration des types de ressources
+interface ResourceTypeConfig {
+  icon: typeof BookOpen;
+  color: string;
+  bg: string;
+  label: string;
+}
+
+const resourceTypeConfig: Record<ResourceType, ResourceTypeConfig> = {
+  article: {
+    icon: BookOpen,
+    color: "text-blue-500",
+    bg: "bg-blue-500/20",
+    label: "Article",
+  },
+  video: {
+    icon: Video,
+    color: "text-red-500",
+    bg: "bg-red-500/20",
+    label: "Vidéo",
+  },
+  course: {
+    icon: GraduationCap,
+    color: "text-green-500",
+    bg: "bg-green-500/20",
+    label: "Cours",
+  },
+  book: {
+    icon: BookOpen,
+    color: "text-purple-500",
+    bg: "bg-purple-500/20",
+    label: "Livre",
+  },
+  use_case: {
+    icon: Laptop,
+    color: "text-orange-500",
+    bg: "bg-orange-500/20",
+    label: "Cas pratique",
+  },
 };
 
+// Configuration des niveaux de difficulté
 interface LevelConfig {
   color: string;
   bg: string;
@@ -146,7 +180,6 @@ function GoalDetailPage() {
     } catch (error) {
       console.error("Error:", error);
 
-      // Message d'erreur plus explicite
       if (error instanceof Error && error.message.includes("existe déjà")) {
         toast.error(
           "Un parcours pour cet objectif existe déjà. Consultez votre tableau de bord pour y accéder.",
@@ -155,7 +188,6 @@ function GoalDetailPage() {
             icon: <AlertCircle className="text-red-500" />,
           }
         );
-        // Rediriger vers le tableau de bord après un court délai
         setTimeout(() => navigate("/dashboard"), 2000);
       } else {
         toast.error(
@@ -192,9 +224,8 @@ function GoalDetailPage() {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
         <div className="text-center text-gray-400">
-          <div className="text-xl font-bold mb-4">
-            {error || "Objectif non trouvé"}
-          </div>
+          <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+          <p className="mb-4">{error || "Objectif non trouvé"}</p>
           <button
             onClick={() => navigate("/goals")}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
@@ -209,7 +240,7 @@ function GoalDetailPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0F] py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* En-tête avec gradient et effet glassmorphism */}
+        {/* En-tête */}
         <div className="glass-card rounded-xl p-8 mb-8 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-purple-500/10">
           <div className="flex items-start justify-between">
             <div>
@@ -225,14 +256,12 @@ function GoalDetailPage() {
                 <div className="flex items-center">
                   <span
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                      levelConfig[goal.level as GoalDifficulty].bg
-                    } ${
-                      levelConfig[goal.level as GoalDifficulty].color
-                    } border ${
-                      levelConfig[goal.level as GoalDifficulty].border
+                      levelConfig[goal.level].bg
+                    } ${levelConfig[goal.level].color} border ${
+                      levelConfig[goal.level].border
                     }`}
                   >
-                    {levelConfig[goal.level as GoalDifficulty].label}
+                    {levelConfig[goal.level].label}
                   </span>
                 </div>
                 <button
@@ -317,7 +346,8 @@ function GoalDetailPage() {
                     </h4>
                     <div className="grid gap-4">
                       {module.resources?.map((resource, resourceIndex) => {
-                        const typeConfig = resourceTypeConfig[resource.type];
+                        const typeConfig =
+                          resourceTypeConfig[resource.type as ResourceType];
                         const Icon = typeConfig.icon;
                         return (
                           <a

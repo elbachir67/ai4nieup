@@ -16,6 +16,7 @@ import assessmentRoutes from "./routes/assessments.js";
 import { userRoutes } from "./routes/users.js";
 import learnerProfileRoutes from "./routes/learnerProfiles.js";
 import { pathwayRoutes } from "./routes/pathways.js";
+import { quizRoutes } from "./routes/quiz.js";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -63,6 +64,7 @@ app.use("/api/assessments", assessmentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/profiles", learnerProfileRoutes);
 app.use("/api/pathways", pathwayRoutes);
+app.use("/api", quizRoutes); // Ajout des routes de quiz
 
 // Error handling
 app.use(errorHandler);
