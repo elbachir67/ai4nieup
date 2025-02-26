@@ -82,6 +82,63 @@ const quizzes = [
         explanation:
           "La validation croisée divise les données en plusieurs sous-ensembles pour évaluer la performance du modèle de manière plus robuste.",
       },
+      {
+        text: "Quel algorithme est couramment utilisé pour la classification binaire ?",
+        options: [
+          {
+            text: "Régression logistique",
+            isCorrect: true,
+          },
+          {
+            text: "K-means",
+            isCorrect: false,
+          },
+          {
+            text: "PCA",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "La régression logistique est un algorithme couramment utilisé pour la classification binaire.",
+      },
+      {
+        text: "Quelle métrique est appropriée pour évaluer un modèle de classification déséquilibrée ?",
+        options: [
+          {
+            text: "F1-score",
+            isCorrect: true,
+          },
+          {
+            text: "Accuracy",
+            isCorrect: false,
+          },
+          {
+            text: "Mean Squared Error",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "Le F1-score est particulièrement utile pour les problèmes de classification déséquilibrée car il prend en compte à la fois la précision et le rappel.",
+      },
+      {
+        text: "Qu'est-ce que le surapprentissage (overfitting) ?",
+        options: [
+          {
+            text: "Le modèle apprend trop bien les données d'entraînement et généralise mal",
+            isCorrect: true,
+          },
+          {
+            text: "Le modèle n'apprend pas assez des données d'entraînement",
+            isCorrect: false,
+          },
+          {
+            text: "Le modèle prend trop de temps à s'entraîner",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "Le surapprentissage se produit lorsqu'un modèle apprend trop spécifiquement les données d'entraînement et perd en capacité de généralisation.",
+      },
     ],
   },
   {
@@ -110,6 +167,63 @@ const quizzes = [
         ],
         explanation:
           "La fonction d'activation introduit de la non-linéarité dans le réseau, permettant d'apprendre des patterns complexes.",
+      },
+      {
+        text: "Quel est le rôle du dropout dans un réseau de neurones ?",
+        options: [
+          {
+            text: "Prévenir le surapprentissage en désactivant aléatoirement des neurones",
+            isCorrect: true,
+          },
+          {
+            text: "Accélérer l'apprentissage",
+            isCorrect: false,
+          },
+          {
+            text: "Réduire la taille du modèle",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "Le dropout est une technique de régularisation qui prévient le surapprentissage en désactivant aléatoirement des neurones pendant l'entraînement.",
+      },
+      {
+        text: "Quelle est la fonction de la couche de pooling dans un CNN ?",
+        options: [
+          {
+            text: "Réduire la dimensionnalité et rendre le réseau plus robuste",
+            isCorrect: true,
+          },
+          {
+            text: "Augmenter la taille des feature maps",
+            isCorrect: false,
+          },
+          {
+            text: "Ajouter des biais au modèle",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "La couche de pooling réduit la dimensionnalité des feature maps et rend le réseau plus robuste aux petites variations dans l'entrée.",
+      },
+      {
+        text: "Qu'est-ce que la descente de gradient stochastique (SGD) ?",
+        options: [
+          {
+            text: "Un algorithme d'optimisation qui met à jour les poids avec des mini-batches",
+            isCorrect: true,
+          },
+          {
+            text: "Une fonction d'activation",
+            isCorrect: false,
+          },
+          {
+            text: "Une technique de régularisation",
+            isCorrect: false,
+          },
+        ],
+        explanation:
+          "SGD est un algorithme d'optimisation qui met à jour les poids du réseau en utilisant des mini-batches de données pour plus d'efficacité.",
       },
     ],
   },
@@ -143,39 +257,115 @@ const concepts = [
 // Données de test pour les objectifs d'apprentissage
 const learningGoals = [
   {
-    title: "Machine Learning Engineer",
-    description: "Maîtrisez les fondamentaux du ML",
-    category: "ml",
+    title: "ML Engineer - Computer Vision",
+    description: "Spécialisation en vision par ordinateur",
+    category: "computer_vision",
     estimatedDuration: 12,
     level: "intermediate",
     careerOpportunities: [
       {
-        title: "ML Engineer",
-        description: "Développement de modèles ML",
+        title: "Computer Vision Engineer",
+        description: "Développement d'algorithmes de vision par ordinateur",
         averageSalary: "45-75k€/an",
-        companies: ["Google", "Amazon", "Meta"],
+        companies: ["Valeo", "Thales", "Safran"],
       },
     ],
     modules: [
       {
-        title: "Introduction au ML",
-        description: "Fondamentaux du machine learning",
+        title: "Introduction à la Vision par Ordinateur",
+        description: "Fondamentaux du traitement d'images",
         duration: 20,
         skills: [
           { name: "Python", level: "basic" },
-          { name: "Scikit-learn", level: "basic" },
+          { name: "OpenCV", level: "basic" },
         ],
         resources: [
           {
-            title: "Cours ML Stanford",
+            title: "Computer Vision Basics",
             type: "video",
-            url: "https://www.coursera.org/learn/machine-learning",
+            url: "https://www.coursera.org/learn/computer-vision-basics",
             duration: 120,
           },
         ],
         validationCriteria: [
-          "Comprendre les types d'apprentissage",
-          "Implémenter un modèle simple",
+          "Comprendre les concepts de base du traitement d'images",
+          "Implémenter des filtres simples avec OpenCV",
+        ],
+      },
+    ],
+  },
+  {
+    title: "Deep Learning Specialist - GANs",
+    description: "Expert en réseaux antagonistes génératifs",
+    category: "dl",
+    estimatedDuration: 16,
+    level: "advanced",
+    careerOpportunities: [
+      {
+        title: "Deep Learning Engineer",
+        description: "Conception et optimisation de GANs",
+        averageSalary: "60-90k€/an",
+        companies: ["OpenAI", "DeepMind", "NVIDIA"],
+      },
+    ],
+    modules: [
+      {
+        title: "Architectures GAN",
+        description: "Fondamentaux des GANs",
+        duration: 25,
+        skills: [
+          { name: "Python", level: "advanced" },
+          { name: "PyTorch", level: "advanced" },
+        ],
+        resources: [
+          {
+            title: "GAN Specialization",
+            type: "video",
+            url: "https://www.coursera.org/specializations/generative-adversarial-networks-gans",
+            duration: 180,
+          },
+        ],
+        validationCriteria: [
+          "Comprendre l'architecture des GANs",
+          "Implémenter et entraîner un GAN simple",
+        ],
+      },
+    ],
+  },
+  {
+    title: "NLP Engineer - LLM Specialist",
+    description: "Expert en modèles de langage de grande taille",
+    category: "nlp",
+    estimatedDuration: 14,
+    level: "advanced",
+    careerOpportunities: [
+      {
+        title: "NLP Engineer",
+        description: "Développement et optimisation de LLMs",
+        averageSalary: "65-95k€/an",
+        companies: ["Hugging Face", "Anthropic", "Mistral AI"],
+      },
+    ],
+    modules: [
+      {
+        title: "Fine-tuning de LLMs",
+        description: "Techniques d'adaptation de LLMs",
+        duration: 30,
+        skills: [
+          { name: "Python", level: "advanced" },
+          { name: "Transformers", level: "advanced" },
+        ],
+        resources: [
+          {
+            title: "LLM Fine-tuning Guide",
+            type: "article",
+            url: "https://huggingface.co/docs/transformers/training",
+            duration: 120,
+          },
+        ],
+        validationCriteria: [
+          "Comprendre les techniques de fine-tuning",
+          "Implémenter un pipeline de fine-tuning efficace",
         ],
       },
     ],
@@ -229,7 +419,6 @@ async function populateDatabase() {
     const createdUsers = [];
     for (const userData of users) {
       try {
-        // Hasher le mot de passe manuellement
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(userData.password, salt);
 
