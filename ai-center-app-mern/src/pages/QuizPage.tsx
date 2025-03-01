@@ -2,13 +2,14 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
-import { QuizQuestion, Question } from "../types";
+import { Question } from "../types";
 import {
   Clock,
   AlertTriangle,
   CheckCircle,
   XCircle,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
@@ -33,9 +34,12 @@ function QuizPage() {
       selectedOption: string;
       isCorrect: boolean;
       timeSpent: number;
+      category: string;
+      difficulty: string;
     }[]
   >([]);
   const [quizStartTime] = useState(Date.now());
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -106,6 +110,8 @@ function QuizPage() {
         selectedOption: optionId,
         isCorrect: isCorrect || false,
         timeSpent,
+        category: currentQuestion.category,
+        difficulty: currentQuestion.difficulty,
       },
     ]);
   };
@@ -122,22 +128,24 @@ function QuizPage() {
   };
 
   const handleQuizComplete = async () => {
-    if (!pathwayId || !moduleId || !user) return;
+    if (!pathwayId || !moduleId || !user || submitting) return;
 
-    // Calculer le score détaillé
-    const correctAnswers = answers.filter(a => a.isCorrect).length;
-    const score = Math.round((correctAnswers / questions.length) * 100);
-    const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
-
-    // Calculer les statistiques détaillées
-    const categoryScores = calculateDetailedScore(questions, answers);
-    const recommendations = generateRecommendations(categoryScores, {
-      mathLevel: "intermediate",
-      programmingLevel: "intermediate",
-      domain: "ml",
-    });
+    setSubmitting(true);
 
     try {
+      // Calculer le score détaillé
+      const correctAnswers = answers.filter(a => a.isCorrect).length;
+      const score = Math.round((correctAnswers / questions.length) * 100);
+      const totalTimeSpent = Math.round((Date.now() - quizStartTime) / 1000);
+
+      // Calculer les statistiques détaillées
+      const categoryScores = calculateDetailedScore(questions, answers);
+      const recommendations = generateRecommendations(categoryScores, {
+        mathLevel: "intermediate",
+        programmingLevel: "intermediate",
+        domain: "ml",
+      });
+
       const response = await fetch(
         `${api.pathways}/${pathwayId}/modules/${moduleId}/quiz/submit`,
         {
@@ -160,6 +168,27 @@ function QuizPage() {
         throw new Error("Erreur lors de la soumission du quiz");
       }
 
+      const data = await response.json();
+
+      // Vérifier si le score est suffisant
+      if (score < 70) {
+        toast.error(
+          "Score insuffisant. Vous devez obtenir au moins 70% pour valider le quiz.",
+          {
+            duration: 5000,
+          }
+        );
+        // Réinitialiser le quiz pour une nouvelle tentative
+        setCurrentQuestionIndex(0);
+        setAnswers([]);
+        setSelectedAnswer(null);
+        setShowExplanation(false);
+        setTimeLeft(data.quiz.timeLimit);
+        setStartTime(Date.now());
+        setSubmitting(false);
+        return;
+      }
+
       toast.success("Quiz complété avec succès !");
       navigate(`/pathways/${pathwayId}/quiz-results`, {
         state: {
@@ -177,13 +206,17 @@ function QuizPage() {
     } catch (error) {
       console.error("Error:", error);
       toast.error("Erreur lors de la soumission du quiz");
+      setSubmitting(false);
     }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
-        <div className="text-gray-400">Chargement du quiz...</div>
+        <div className="flex items-center space-x-2 text-gray-400">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Chargement du quiz...</span>
+        </div>
       </div>
     );
   }
@@ -219,6 +252,22 @@ function QuizPage() {
 
           {/* Question */}
           <div className="mb-8">
+            <div className="flex items-center space-x-2 mb-4">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  currentQuestion.difficulty === "basic"
+                    ? "bg-green-500/20 text-green-400"
+                    : currentQuestion.difficulty === "intermediate"
+                    ? "bg-blue-500/20 text-blue-400"
+                    : "bg-purple-500/20 text-purple-400"
+                }`}
+              >
+                {currentQuestion.difficulty}
+              </span>
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                {currentQuestion.category}
+              </span>
+            </div>
             <p className="text-xl text-gray-200">{currentQuestion.text}</p>
           </div>
 
@@ -268,9 +317,15 @@ function QuizPage() {
           {showExplanation && (
             <button
               onClick={handleNextQuestion}
-              className="mt-8 w-full py-3 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors duration-200 flex items-center justify-center"
+              disabled={submitting}
+              className="mt-8 w-full py-3 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {currentQuestionIndex === questions.length - 1 ? (
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Traitement en cours...
+                </>
+              ) : currentQuestionIndex === questions.length - 1 ? (
                 "Terminer le quiz"
               ) : (
                 <>
