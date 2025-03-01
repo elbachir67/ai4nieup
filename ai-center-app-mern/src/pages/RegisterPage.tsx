@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -14,12 +14,14 @@ function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError("");
 
     if (password !== confirmPassword) {
-      toast.error("Les mots de passe ne correspondent pas");
+      setError("Les mots de passe ne correspondent pas");
       return;
     }
 
@@ -35,7 +37,8 @@ function RegisterPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur lors de l'inscription");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Erreur lors de l'inscription");
       }
 
       const data = await response.json();
@@ -47,6 +50,10 @@ function RegisterPage() {
       // Rediriger vers l'évaluation après l'inscription
       navigate("/assessment");
     } catch (error) {
+      console.error("Registration error:", error);
+      setError(
+        error instanceof Error ? error.message : "Erreur lors de l'inscription"
+      );
       toast.error("Erreur lors de l'inscription");
     } finally {
       setLoading(false);
@@ -82,10 +89,20 @@ function RegisterPage() {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-red-300 text-sm">{error}</p>
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
                 Email
               </label>
               <input
@@ -100,7 +117,10 @@ function RegisterPage() {
               />
             </div>
             <div className="relative">
-              <label htmlFor="password" className="sr-only">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
                 Mot de passe
               </label>
               <input
@@ -116,7 +136,7 @@ function RegisterPage() {
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none top-6"
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -126,7 +146,10 @@ function RegisterPage() {
               </button>
             </div>
             <div className="relative">
-              <label htmlFor="confirmPassword" className="sr-only">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
                 Confirmer le mot de passe
               </label>
               <input
@@ -142,7 +165,7 @@ function RegisterPage() {
               <button
                 type="button"
                 onClick={toggleConfirmPasswordVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none top-6"
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />

@@ -16,7 +16,7 @@ interface AuthContextType {
   hasCompletedAssessment: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => void;
-  checkAssessmentStatus: () => Promise<void>;
+  checkAssessmentStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,11 +88,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
+
+      // Check if the response has the expected structure
+      if (!data.token || !data.user || !data.user.id) {
+        console.error("Unexpected response format:", data);
+        throw new Error("Invalid response format");
+      }
+
       const userData = {
         id: data.user.id,
         email: data.user.email,
         token: data.token,
-        isAdmin: data.user.isAdmin,
+        isAdmin: data.user.isAdmin || false,
       };
 
       setUser(userData);
@@ -101,6 +108,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Vérifier le statut de l'évaluation après la connexion
       await checkAssessmentStatus();
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -112,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasCompletedAssessment(false);
     localStorage.removeItem("user");
     localStorage.removeItem("assessmentStatus");
+    localStorage.removeItem("redirectAfterLogin");
   };
 
   return (

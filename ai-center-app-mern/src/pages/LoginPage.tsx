@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../config/api";
-import { Lock, Eye, EyeOff } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -12,11 +12,13 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     // Si l'utilisateur est déjà connecté, rediriger
     if (isAuthenticated) {
-      const redirectUrl = localStorage.getItem("redirectAfterLogin") || "/";
+      const redirectUrl =
+        localStorage.getItem("redirectAfterLogin") || "/goals";
       localStorage.removeItem("redirectAfterLogin"); // Nettoyer après utilisation
       navigate(redirectUrl);
     }
@@ -25,6 +27,7 @@ function LoginPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     try {
       const response = await fetch(api.auth.login, {
@@ -36,18 +39,21 @@ function LoginPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Erreur de connexion");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Identifiants invalides");
       }
 
       const data = await response.json();
       if (data.success) {
         await signIn(email, password);
-
+        toast.success("Connexion réussie");
         // La redirection sera gérée par le useEffect
       } else {
         throw new Error(data.message || "Erreur de connexion");
       }
     } catch (error) {
+      console.error("Login error:", error);
+      setError(error instanceof Error ? error.message : "Erreur de connexion");
       toast.error("Erreur de connexion");
     } finally {
       setLoading(false);
@@ -56,6 +62,17 @@ function LoginPage() {
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  // Utilisateurs de test
+  const testUsers = [
+    { email: "student1@ucad.edu.sn", password: "Student123!" },
+    { email: "admin@ucad.edu.sn", password: "Admin123!" },
+  ];
+
+  const fillTestUser = (user: { email: string; password: string }) => {
+    setEmail(user.email);
+    setPassword(user.password);
   };
 
   return (
@@ -79,10 +96,20 @@ function LoginPage() {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-red-300 text-sm">{error}</p>
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label htmlFor="email" className="sr-only">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
                 Email
               </label>
               <input
@@ -97,7 +124,10 @@ function LoginPage() {
               />
             </div>
             <div className="relative">
-              <label htmlFor="password" className="sr-only">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
                 Mot de passe
               </label>
               <input
@@ -113,7 +143,7 @@ function LoginPage() {
               <button
                 type="button"
                 onClick={togglePasswordVisibility}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300 focus:outline-none top-6"
               >
                 {showPassword ? (
                   <EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -134,6 +164,27 @@ function LoginPage() {
             </button>
           </div>
         </form>
+
+        {/* Utilisateurs de test */}
+        <div className="border-t border-gray-700 pt-6">
+          <h3 className="text-sm font-medium text-gray-400 mb-3">
+            Comptes de démonstration :
+          </h3>
+          <div className="space-y-2">
+            {testUsers.map((user, index) => (
+              <button
+                key={index}
+                onClick={() => fillTestUser(user)}
+                className="w-full text-left px-3 py-2 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg text-sm text-gray-300 transition-colors"
+              >
+                <div className="font-medium">{user.email}</div>
+                <div className="text-gray-500 text-xs">
+                  Mot de passe: {user.password}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

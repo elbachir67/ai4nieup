@@ -17,18 +17,31 @@ import QuizResultsPage from "./pages/QuizResultsPage";
 function PrivateRoute({
   children,
   adminOnly = false,
+  requireAssessment = false,
 }: {
   children: React.ReactNode;
   adminOnly?: boolean;
+  requireAssessment?: boolean;
 }) {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, hasCompletedAssessment } = useAuth();
 
   if (!isAuthenticated) {
+    // Store the current path to redirect back after login
+    localStorage.setItem("redirectAfterLogin", window.location.pathname);
     return <Navigate to="/login" />;
   }
 
   if (adminOnly && !isAdmin) {
     return <Navigate to="/" />;
+  }
+
+  if (requireAssessment && !hasCompletedAssessment) {
+    return (
+      <Navigate
+        to="/assessment"
+        state={{ returnPath: window.location.pathname }}
+      />
+    );
   }
 
   return <>{children}</>;
@@ -44,8 +57,25 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/admin" element={<AdminLoginPage />} />
-        <Route path="/goals" element={<GoalsExplorerPage />} />
-        <Route path="/goals/:goalId" element={<GoalDetailPage />} />
+
+        <Route
+          path="/goals"
+          element={
+            <PrivateRoute requireAssessment={true}>
+              <GoalsExplorerPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/goals/:goalId"
+          element={
+            <PrivateRoute requireAssessment={true}>
+              <GoalDetailPage />
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/dashboard"
           element={
@@ -54,6 +84,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/pathways/:pathwayId"
           element={
@@ -62,6 +93,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/pathways/:pathwayId/modules/:moduleId/quiz"
           element={
@@ -70,6 +102,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/pathways/:pathwayId/quiz-results"
           element={

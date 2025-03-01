@@ -47,9 +47,9 @@ const QuizComponent: React.FC<QuizComponentProps> = ({
     setSelectedAnswer(optionId);
     setShowExplanation(true);
 
-    const isCorrect = currentQuestion.options.find(
-      opt => opt.id === optionId
-    )?.isCorrect;
+    const isCorrect =
+      currentQuestion.options.find(opt => opt.id === optionId)?.isCorrect ||
+      false;
     if (isCorrect) {
       setScore(prev => prev + 1);
     }
@@ -62,13 +62,15 @@ const QuizComponent: React.FC<QuizComponentProps> = ({
         timeSpent,
         category: currentQuestion.category,
         difficulty: currentQuestion.difficulty,
+        isCorrect: isCorrect,
       },
     ]);
   };
 
   const handleNext = () => {
     if (isLastQuestion) {
-      onComplete(score, responses);
+      const finalScore = Math.round((score / questions.length) * 100);
+      onComplete(finalScore, responses);
     } else {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedAnswer(null);

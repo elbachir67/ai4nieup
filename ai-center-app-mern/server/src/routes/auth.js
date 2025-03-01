@@ -3,6 +3,7 @@ import { body, validationResult } from "express-validator";
 import { User } from "../models/User.js";
 import { auth } from "../middleware/auth.js";
 import { logger } from "../utils/logger.js";
+import bcrypt from "bcryptjs";
 
 const router = express.Router();
 
@@ -35,12 +36,14 @@ router.post("/login", loginValidation, async (req, res) => {
     const { email, password, isAdminLogin } = req.body;
     logger.info(`Login attempt for email: ${email}`);
 
+    // Trouver l'utilisateur par email
     const user = await User.findOne({ email, isActive: true });
     if (!user) {
       logger.warn(`No user found with email: ${email}`);
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Vérifier le mot de passe en utilisant la méthode du modèle
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       logger.warn(`Invalid password for user: ${email}`);

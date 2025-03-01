@@ -58,6 +58,7 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     logger.info(`Comparing password for user: ${this.email}`);
+    // Utiliser bcrypt.compare pour comparer les mots de passe
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
     logger.info(`Password match result for ${this.email}: ${isMatch}`);
     return isMatch;

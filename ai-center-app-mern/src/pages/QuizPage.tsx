@@ -10,6 +10,8 @@ import {
   XCircle,
   ArrowRight,
   Loader2,
+  BookOpen,
+  RefreshCcw,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import {
@@ -40,6 +42,8 @@ function QuizPage() {
   >([]);
   const [quizStartTime] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
+  const [showRetryOptions, setShowRetryOptions] = useState(false);
+  const [quiz, setQuiz] = useState<any>(null);
 
   useEffect(() => {
     const fetchQuiz = async () => {
@@ -61,6 +65,7 @@ function QuizPage() {
         }
 
         const data = await response.json();
+        setQuiz(data);
         setQuestions(data.questions);
         setTimeLeft(data.timeLimit);
         setStartTime(Date.now());
@@ -97,9 +102,10 @@ function QuizPage() {
 
     const timeSpent = (Date.now() - startTime) / 1000;
     const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = currentQuestion.options.find(
+    const selectedOption = currentQuestion.options.find(
       opt => opt.id === optionId
-    )?.isCorrect;
+    );
+    const isCorrect = selectedOption?.isCorrect || false;
 
     setSelectedAnswer(optionId);
     setShowExplanation(true);
@@ -108,7 +114,7 @@ function QuizPage() {
       {
         questionId: currentQuestion.id,
         selectedOption: optionId,
-        isCorrect: isCorrect || false,
+        isCorrect,
         timeSpent,
         category: currentQuestion.category,
         difficulty: currentQuestion.difficulty,
@@ -128,7 +134,7 @@ function QuizPage() {
   };
 
   const handleQuizComplete = async () => {
-    if (!pathwayId || !moduleId || !user || submitting) return;
+    if (!pathwayId || !moduleId || !user || submitting || !quiz) return;
 
     setSubmitting(true);
 
@@ -171,20 +177,16 @@ function QuizPage() {
       const data = await response.json();
 
       // Vérifier si le score est suffisant
-      if (score < 70) {
+      if (score < (quiz.passingScore || 70)) {
+        setShowRetryOptions(true);
         toast.error(
-          "Score insuffisant. Vous devez obtenir au moins 70% pour valider le quiz.",
+          `Score insuffisant. Vous devez obtenir au moins ${
+            quiz.passingScore || 70
+          }% pour valider le quiz.`,
           {
             duration: 5000,
           }
         );
-        // Réinitialiser le quiz pour une nouvelle tentative
-        setCurrentQuestionIndex(0);
-        setAnswers([]);
-        setSelectedAnswer(null);
-        setShowExplanation(false);
-        setTimeLeft(data.quiz.timeLimit);
-        setStartTime(Date.now());
         setSubmitting(false);
         return;
       }
@@ -210,12 +212,69 @@ function QuizPage() {
     }
   };
 
+  const handleRetry = () => {
+    setCurrentQuestionIndex(0);
+    setAnswers([]);
+    setSelectedAnswer(null);
+    setShowExplanation(false);
+    setTimeLeft(
+      questions[0].difficulty === "basic"
+        ? 60
+        : questions[0].difficulty === "intermediate"
+        ? 90
+        : 120
+    );
+    setStartTime(Date.now());
+    setShowRetryOptions(false);
+  };
+
+  const handleReturnToResources = () => {
+    navigate(`/pathways/${pathwayId}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
         <div className="flex items-center space-x-2 text-gray-400">
           <Loader2 className="w-6 h-6 animate-spin" />
           <span>Chargement du quiz...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (showRetryOptions) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0F] flex items-center justify-center">
+        <div className="glass-card rounded-xl p-8 max-w-lg w-full mx-4">
+          <div className="text-center mb-8">
+            <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-100 mb-2">
+              Score insuffisant
+            </h2>
+            <p className="text-gray-400">
+              Vous devez obtenir au moins {quiz?.passingScore || 70}% pour
+              valider ce quiz et progresser dans votre parcours.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleRetry}
+              className="w-full py-3 px-4 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors flex items-center justify-center"
+            >
+              <RefreshCcw className="w-5 h-5 mr-2" />
+              Réessayer le quiz
+            </button>
+
+            <button
+              onClick={handleReturnToResources}
+              className="w-full py-3 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors flex items-center justify-center"
+            >
+              <BookOpen className="w-5 h-5 mr-2" />
+              Retourner aux ressources
+            </button>
+          </div>
         </div>
       </div>
     );
